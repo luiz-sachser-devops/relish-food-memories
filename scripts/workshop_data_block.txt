@@ -1,0 +1,241 @@
+  const workshopData = {
+    day1: {
+      title: "Day 1: Mapping and Writing",
+      subtitle: "Narrative Session",
+      phases: [
+        {
+          name: "Memory Activation and Mapping",
+          icon: MapPin,
+          color: "bg-relish-paper border-relish-linen",
+          modules: [
+            {
+              id: "1-1",
+              title: "My Madeleine: A Proustian Memory Activation",
+              duration: "30 min",
+              purpose: "To activate autobiographical memory and create emotional safety through personal connection",
+              steps: [
+                "Welcome participants and create a safe, comfortable environment",
+                "Share your own food memory example as facilitator",
+                "Invite participants to identify a food/dish that evokes a strong memory",
+                "Encourage description of sensory, emotional, and cultural dimensions",
+                "Optional: Show-and-tell with real foods, utensils, or images"
+              ],
+              materials: ["Real food items (optional)", "Images/photos", "Projector or printed visuals"],
+              tips: ["Model vulnerability by sharing first", "Allow silence for reflection", "Encourage but don't pressure sharing"]
+            },
+            {
+              id: "1-2",
+              title: "Food Memory Map / Culinary Landscape",
+              duration: "45 min",
+              purpose: "To facilitate access to food memories and identify what participants want to write about",
+              steps: [
+                "Provide large paper sheets and creative materials",
+                "Ask participants to list foodstuffs from their home/origin",
+                "Encourage drawing connections between elements",
+                "Prompt for sensory details: colors, aromas, shapes, textures",
+                "Use vocabulary cards to support description",
+                "Identify which aspects relate to Intangible Cultural Heritage",
+                "Optional: Collaborative evaluation of maps"
+              ],
+              materials: ["Large paper sheets", "Colored pens/markers", "Vocabulary cards", "Collage materials (magazines, scissors, glue)"],
+              tips: ["Encourage creativity and personal style", "Sharing is optional but encouraged", "Focus on relationships between elements"]
+            }
+          ]
+        },
+        {
+          name: "Writing as Inquiry",
+          icon: FileText,
+          color: "bg-white border-relish-warm",
+          modules: [
+            {
+              id: "1-3",
+              title: "Sensory-Rich Reflective Writing: 'Taste of Home'",
+              duration: "45 min",
+              purpose: "To develop detailed emotional and sensory narratives around a food memory",
+              steps: [
+                "Participants select an aspect from their culinary map",
+                "Encourage automatic writing (raw, unedited narratives)",
+                "Provide guiding questions: Who prepared? When eaten? What emotions?",
+                "Focus on sensory details: smells, textures, sounds, atmosphere",
+                "Explore meaning: past vs. present significance",
+                "If multi-day workshop: assign continued writing as homework"
+              ],
+              materials: ["Journals/notebooks", "Pens", "Printed prompts", "Quiet writing space"],
+              tips: ["Emphasize no judgment—write freely", "Provide optional guiding questions", "Allow flexible pacing"]
+            },
+            {
+              id: "1-4",
+              title: "Everyday Eating",
+              duration: "30 min",
+              purpose: "To highlight contrast between Heritage Food and contemporary habits; prepare for speculative exercise",
+              steps: [
+                "Participants write contrasting micro-essay about a detail from previous writing",
+                "Pair work: discussion and mutual critique (5-10 min)",
+                "Solitary writing: focus on convenience, health, sustainability",
+                "Share micro-essays with the group",
+                "Facilitator establishes common themes across participants",
+                "Identify shared elements (dish, ingredient, custom) for co-creation"
+              ],
+              materials: ["Writing materials", "Sharing circle setup"],
+              tips: ["Highlight commonalities", "Prepare transition to future recipe", "Celebrate diverse perspectives"]
+            }
+          ]
+        },
+        {
+          name: "Co-creation of the Future Recipe",
+          icon: Lightbulb,
+          color: "bg-relish-paper-deep border-relish-clay",
+          modules: [
+            {
+              id: "1-5",
+              title: "The Future Evolution of a Recipe",
+              duration: "60 min",
+              purpose: "To reflect on culinary continuity and change; consider future challenges and adaptations",
+              steps: [
+                "Identify common points in participants' maps and memories",
+                "Choose a shared recipe or dish",
+                "Visualize the dish (sketching or collage encouraged)",
+                "Research ingredients, traditions, sustainability concerns",
+                "Imagine future conditions: social/environmental changes",
+                "Draft the future recipe with clear steps",
+                "Connect each change to participants' stories",
+                "This recipe becomes the focus of Day 2"
+              ],
+              materials: ["Large paper for collaborative work", "Markers", "Recipe template", "Research materials"],
+              tips: ["Foster creative speculation", "Ground changes in real concerns", "Document the co-creation process"]
+            }
+          ]
+        }
+      ]
+    },
+    day2: {
+      title: "Day 2: Cooking, Sharing and Co-creation",
+      subtitle: "Cooking Session",
+      phases: [
+        {
+          name: "Recap and Sharing Reflections",
+          icon: BookOpen,
+          color: "bg-white border-relish-linen",
+          modules: [
+            {
+              id: "2-1",
+              title: "Where Did We Start and Where Are We Going?",
+              duration: "30 min",
+              purpose: "To reactivate emotional/sensory material from Day 1; bridge speculative work and embodied practice",
+              steps: [
+                "Sit together informally as a group",
+                "Share reflections on key memories from Day 1",
+                "Discuss insights from writing and mapping exercises",
+                "Express expectations for the cooking session",
+                "Review the 'Future Recipe' created yesterday",
+                "Discuss ingredients, steps, and story behind co-creation",
+                "Clarify roles, tasks, and sequence for cooking"
+              ],
+              materials: ["Day 1 materials", "Future Recipe document", "Seating arrangement"],
+              tips: ["Create comfortable atmosphere", "Ensure everyone's voice is heard", "Build excitement for cooking"]
+            }
+          ]
+        },
+        {
+          name: "Collaborative Cooking and Guided Conversation",
+          icon: Utensils,
+          color: "bg-relish-paper border-relish-warm",
+          modules: [
+            {
+              id: "2-2",
+              title: "Cooking as Heritage Practice",
+              duration: "45 min",
+              purpose: "To understand cooking as cultural practice weaving habits, family learning, and collective identity",
+              steps: [
+                "Begin collaborative cooking of the Future Recipe",
+                "Facilitate conversation about everyday cooking relationships",
+                "Prompts: Do you use recipes daily? How do you use them?",
+                "Discuss: Do you write down new recipes?",
+                "Explore: How do you interact with the kitchen?",
+                "Observer takes detailed field notes",
+                "Document embodied practices and gestures"
+              ],
+              materials: ["All cooking equipment", "Ingredients", "Recording devices", "Observer notebook"],
+              tips: ["Let participants lead cooking", "Ask open-ended questions", "Observe tacit knowledge"]
+            },
+            {
+              id: "2-3",
+              title: "The Memory-Aroma Connection",
+              duration: "30 min",
+              purpose: "To explore how senses function as memory repositories and tools for decision-making",
+              steps: [
+                "Continue cooking while focusing on sensory dimensions",
+                "Prompt participants to notice smells, textures, sounds",
+                "Ask: What do these smells evoke for you?",
+                "Discuss: Which sensory cues guide your cooking decisions?",
+                "Explore: How do you know when something is 'done'?",
+                "Help participants verbalize tacit sensory criteria",
+                "Link sensory experiences to memories and emotions"
+              ],
+              materials: ["Ongoing cooking setup", "Recording equipment"],
+              tips: ["Slow down to notice details", "Validate intuitive knowledge", "Connect senses to memory"]
+            },
+            {
+              id: "2-4",
+              title: "Dialogue on Intangible Culinary Heritage",
+              duration: "30 min",
+              purpose: "To prompt critical reflection on personal and collective relationship with culinary heritage",
+              steps: [
+                "Continue cooking while discussing heritage concepts",
+                "Ask: What does culinary heritage mean to you?",
+                "Explore: Do you feel connected to specific traditions?",
+                "Discuss: Should heritage be preserved? How? By whom?",
+                "Reflect: What's your role in preservation or transformation?",
+                "Frame heritage as living practice, not fixed tradition",
+                "Allow space for questioning and reinterpretation"
+              ],
+              materials: ["Cooking in progress", "Recording devices"],
+              tips: ["Embrace complexity and ambivalence", "Avoid imposing single narrative", "Value diverse relationships to heritage"]
+            },
+            {
+              id: "2-5",
+              title: "Future and Culinary Innovation",
+              duration: "30 min",
+              purpose: "To explore future imaginaries and position participants as agents of change",
+              steps: [
+                "Continue cooking while looking forward",
+                "Ask: How do you imagine culinary heritage evolving?",
+                "Discuss: What hopes or concerns about future changes?",
+                "Explore: What role will you play in transformation?",
+                "Reflect: What legacy for future generations?",
+                "Connect current cooking to future possibilities",
+                "Document participant visions and expectations"
+              ],
+              materials: ["Cooking equipment", "Recording devices"],
+              tips: ["Encourage imaginative thinking", "Balance optimism and realism", "Recognize agency"]
+            }
+          ]
+        },
+        {
+          name: "Plating and Collective Tasting",
+          icon: CheckCircle,
+          color: "bg-relish-paper-deep border-relish-accent",
+          modules: [
+            {
+              id: "2-6",
+              title: "Tasting Memory in Evolution",
+              duration: "45 min",
+              purpose: "To build bridges between past and future through collective reflection",
+              steps: [
+                "Plate the prepared dish together",
+                "Share the meal among all participants",
+                "Discuss how dish relates to shared narrative",
+                "Reflect on aspects of innovation, change, or future",
+                "Compare expected vs. actual results",
+                "Gather final reflections and evaluations",
+                "Thank participants and close the workshop",
+                "Optional: Collect materials and photographs"
+              ],
+              materials: ["Plates and serving items", "Camera", "Evaluation forms (optional)"],
+              tips: ["Create celebratory atmosphere", "Honor the collective work", "Document final reflections"]
+            }
+          ]
+        }
+      ]
+    }
+  };

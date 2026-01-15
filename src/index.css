@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --relish-accent: #e05345;
+  --relish-accent-dark: #b63c32;
+  --relish-ink: #1f1a17;
+  --relish-ink-muted: #3b332d;
+  --relish-paper: #f8f4ee;
+  --relish-paper-deep: #efe3d6;
+  --relish-warm: #e3d6c7;
+  --relish-linen: #d7c6b2;
+  --relish-smoke: #9a8c7e;
+  --relish-shadow: rgba(31, 26, 23, 0.08);
+  --font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+    'Helvetica Neue', sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  background-color: var(--relish-paper);
+  color: var(--relish-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.relish-shell {
+  min-height: 100vh;
+  background-color: var(--relish-paper);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(236, 227, 214, 0.95) 55%, rgba(219, 206, 190, 0.98) 100%),
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 42%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.35), transparent 38%),
+    repeating-linear-gradient(0deg, rgba(241, 232, 221, 0.35) 0px, rgba(241, 232, 221, 0.35) 1px, transparent 1px, transparent 3px);
+  background-attachment: fixed;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    color: var(--relish-ink);
+  }
+
+  p,
+  li,
+  button,
+  input,
+  textarea,
+  label,
+  span {
+    font-family: var(--font-sans);
+    color: var(--relish-ink-muted);
+  }
+}
