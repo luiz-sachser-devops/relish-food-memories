@@ -53,6 +53,34 @@
   }
 }
 
+@keyframes splashImgSlideRight {
+  0% {
+    transform: translateY(-55vh);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes splashImgSlideLeft {
+  0% {
+    transform: translateY(55vh);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .splash-overlay {
   pointer-events: auto;
   background-color: var(--relish-paper);
@@ -94,6 +122,22 @@
 .splash-prompt {
   animation: splashTextRise 2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   animation-delay: 0.1s;
+}
+
+.splash-img-right {
+  animation: splashImgSlideRight 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  width: min(26vw, 325px);
+  min-width: 156px;
+  height: auto;
+  display: block;
+}
+
+.splash-img-left {
+  animation: splashImgSlideLeft 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  width: min(26vw, 325px);
+  min-width: 156px;
+  height: auto;
+  display: block;
 }
 
 .main-app-shell {

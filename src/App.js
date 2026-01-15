@@ -3,6 +3,8 @@ import { ChevronRight, ChevronLeft, Clock, Users, CheckCircle, BookOpen, Utensil
 import './App.css';
 import relishLineArt from './img/relish-lineart.svg';
 import logoPng from './img/logo.png';
+import img1 from './img/img1.png';
+import img4 from './img/img4.png';
 
 const CHECKLIST_STORAGE_KEY = 'food-memories-checklist';
 const PHOTO_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit per requirements
@@ -1110,6 +1112,16 @@ const WorkshopTool = () => {
           }}
           className={`splash-overlay ${overlayStateClass} fixed inset-0 z-[80] flex flex-col items-center justify-center px-6 text-center cursor-pointer bg-relish-paper`}
         >
+          <img
+            src={img1}
+            alt=""
+            className="splash-img-right absolute top-[20%] right-0"
+          />
+          <img
+            src={img4}
+            alt=""
+            className="splash-img-left absolute bottom-[20%] left-0"
+          />
           <div className="flex flex-col items-center gap-10">
             <div className="splash-logo-frame">
               <img
