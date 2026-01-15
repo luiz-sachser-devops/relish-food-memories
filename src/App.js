@@ -188,7 +188,7 @@ const WorkshopTool = () => {
         {
           name: "Writing as Inquiry",
           icon: FileText,
-          color: "bg-white border-relish-warm",
+          color: "bg-relish-paper border-relish-warm",
           modules: [
             {
               id: "1-3",
@@ -227,7 +227,7 @@ const WorkshopTool = () => {
         {
           name: "Co-creation of the Future Recipe",
           icon: Lightbulb,
-          color: "bg-relish-paper-deep border-relish-clay",
+          color: "bg-relish-paper border-relish-clay",
           modules: [
             {
               id: "1-5",
@@ -258,7 +258,7 @@ const WorkshopTool = () => {
         {
           name: "Recap and Sharing Reflections",
           icon: BookOpen,
-          color: "bg-white border-relish-linen",
+          color: "bg-relish-paper border-relish-linen",
           modules: [
             {
               id: "2-1",
@@ -357,7 +357,7 @@ const WorkshopTool = () => {
         {
           name: "Plating and Collective Tasting",
           icon: CheckCircle,
-          color: "bg-relish-paper-deep border-relish-accent",
+          color: "bg-relish-paper border-relish-accent",
           modules: [
             {
               id: "2-6",
@@ -1191,14 +1191,14 @@ const WorkshopTool = () => {
               </button>
               <button
                 onClick={() => setShowNotes(!showNotes)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-ink text-relish-ink shadow-sm hover:bg-relish-ink hover:text-white transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-warm bg-white text-relish-ink shadow-sm hover:bg-relish-paper transition-colors"
               >
                 <FileText size={18} />
                 Notes
               </button>
               <button
                 onClick={() => setShowChecklist(!showChecklist)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-relish-paper text-relish-ink border border-relish-warm shadow-sm hover:bg-white transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-warm bg-white text-relish-ink shadow-sm hover:bg-relish-paper transition-colors"
               >
                 <CheckCircle size={18} />
                 Checklist
@@ -1342,8 +1342,8 @@ const WorkshopTool = () => {
                 onClick={() => { setCurrentPhase(idx); setCurrentModule(0); }}
                 className={`rounded-2xl border px-5 py-5 text-left transition-all ${
                   currentPhase === idx
-                    ? `${p.color} shadow-relish-card`
-                    : 'bg-white border-relish-linen hover:bg-white/80'
+                    ? 'bg-white shadow-relish-card border-relish-ink'
+                    : 'bg-transparent border-relish-linen hover:bg-white/70'
                 }`}
               >
                 <div className="mb-4 flex justify-start">
@@ -1390,11 +1390,11 @@ const WorkshopTool = () => {
                 onClick={() => toggleModuleComplete(module.id)}
                 className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all ${
                   completedModules.has(module.id)
-                    ? 'border-transparent bg-relish-accent text-white shadow-sm'
+                    ? 'border-relish-ink bg-relish-ink text-white shadow-sm'
                     : 'border-relish-ink text-relish-ink hover:bg-relish-ink hover:text-white'
                 }`}
               >
-                <CheckCircle size={20} />
+                <CheckCircle size={20} className={completedModules.has(module.id) ? 'text-green-400' : ''} />
                 {completedModules.has(module.id) ? 'Marked Complete' : 'Mark Complete'}
               </button>
             </div>
@@ -1587,7 +1587,7 @@ const WorkshopTool = () => {
       {/* Photo Manager Modal */}
       {showPhotoManager && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white/98 rounded-[32px] shadow-relish-card max-w-6xl w-full max-h-[90vh] flex flex-col border border-relish-linen">
+          <div className="bg-white/95 rounded-[32px] shadow-relish-card max-w-6xl w-full max-h-[90vh] flex flex-col border border-relish-linen overflow-hidden">
             <div className="p-6 border-b border-relish-linen flex items-center justify-between bg-white/80">
               <div>
                 <h3 className="text-2xl font-display text-relish-ink">Workshop Photo Library</h3>
@@ -1597,7 +1597,7 @@ const WorkshopTool = () => {
                 <button
                   onClick={openCameraCapture}
                   disabled={photoUploading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-relish-ink text-white hover:bg-relish-ink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-relish-accent text-white hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Camera size={18} />
                   Live Capture
