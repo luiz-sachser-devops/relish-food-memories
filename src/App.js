@@ -4,7 +4,9 @@ import './App.css';
 import relishLineArt from './img/relish-lineart.svg';
 import logoPng from './img/logo.png';
 import img1 from './img/img1.png';
+import img2 from './img/img2.png';
 import img4 from './img/img4.png';
+import coverImg from './img/cover.png';
 
 const CHECKLIST_STORAGE_KEY = 'food-memories-checklist';
 const PHOTO_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit per requirements
@@ -1151,6 +1153,20 @@ const WorkshopTool = () => {
         }`}
         aria-hidden={splashState !== 'hidden'}
       >
+      {/* Background cover image */}
+      <img
+        src={coverImg}
+        alt=""
+        aria-hidden="true"
+        className="absolute top-[105px] right-0 w-[54%] max-w-[731px] h-auto opacity-100 pointer-events-none z-0"
+      />
+      {/* Background img2 */}
+      <img
+        src={img2}
+        alt=""
+        aria-hidden="true"
+        className="absolute bottom-[20vh] left-0 w-[34vw] max-w-[423px] min-w-[203px] h-auto opacity-75 pointer-events-none z-0"
+      />
       {/* Header */}
       <div className="bg-white/90 backdrop-blur border-b border-relish-linen">
         <div className="max-w-6xl mx-auto px-6 py-6">
