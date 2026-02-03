@@ -23,6 +23,16 @@ const participantSchema = new Schema(
     notes: {
       type: String,
       trim: true
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    workshopId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workshop',
+      default: null
     }
   },
   {

@@ -115,6 +115,14 @@
   display: block;
 }
 
+.auth-logo-frame {
+  width: min(30vw, 347px);
+  min-width: 180px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .splash-text-block {
   animation: splashTextRise 2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }

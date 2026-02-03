@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Clock, Users, CheckCircle, BookOpen, Utensils, MapPin, Lightbulb, FileText, Play, Pause, RotateCcw, Timer, UserPlus, Pencil, Trash2, Upload, Download, X, Images, Camera, Maximize2, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ChevronRight, ChevronLeft, Clock, Users, CheckCircle, BookOpen, Utensils, MapPin, Lightbulb, FileText, Play, Pause, RotateCcw, Timer, UserPlus, Pencil, Trash2, Upload, Download, X, Images, Camera, Maximize2, XCircle, Eye, EyeOff, Plus } from 'lucide-react';
 import './App.css';
 import relishLineArt from './img/relish-lineart.svg';
 import logoPng from './img/logo.png';
 import img1 from './img/img1.png';
 import img2 from './img/img2.png';
+import img3 from './img/img3.png';
 import img4 from './img/img4.png';
 import coverImg from './img/cover.png';
 
@@ -12,6 +13,7 @@ const CHECKLIST_STORAGE_KEY = 'food-memories-checklist';
 const PHOTO_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit per requirements
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
 const SPLASH_TRANSITION_MS = 2000;
+const PASSWORD_RULES = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 const CHECKLIST_SECTIONS = [
   {
@@ -95,6 +97,31 @@ const WorkshopTool = () => {
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [participantsError, setParticipantsError] = useState(null);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [participantAccounts, setParticipantAccounts] = useState([]);
+  const [participantAccountsLoading, setParticipantAccountsLoading] = useState(false);
+  const [participantAccountsError, setParticipantAccountsError] = useState(null);
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState('');
+  const [assigningParticipantId, setAssigningParticipantId] = useState(null);
+  const [assigningAccountId, setAssigningAccountId] = useState(null);
+  const [workshops, setWorkshops] = useState([]);
+  const [workshopsLoading, setWorkshopsLoading] = useState(false);
+  const [workshopsError, setWorkshopsError] = useState(null);
+  const [showWorkshops, setShowWorkshops] = useState(false);
+  const [showWorkshopDetail, setShowWorkshopDetail] = useState(false);
+  const [activeWorkshopId, setActiveWorkshopId] = useState(null);
+  const [workshopForm, setWorkshopForm] = useState({ name: '', facilitatorId: '' });
+  const [facilitators, setFacilitators] = useState([]);
+  const [facilitatorsLoading, setFacilitatorsLoading] = useState(false);
+  const [facilitatorsError, setFacilitatorsError] = useState(null);
+  const [showWorkshopDeleteConfirm, setShowWorkshopDeleteConfirm] = useState(false);
+  const [pendingWorkshopDelete, setPendingWorkshopDelete] = useState(null);
+  const [showFacilitatorWorkshopDeleteConfirm, setShowFacilitatorWorkshopDeleteConfirm] = useState(false);
+  const [workshopEditName, setWorkshopEditName] = useState('');
+  const [workshopSaving, setWorkshopSaving] = useState(false);
+  const [isEditingWorkshopName, setIsEditingWorkshopName] = useState(false);
+  const [assigningWorkshopEditId, setAssigningWorkshopEditId] = useState(null);
+  const [workshopEditNameAdmin, setWorkshopEditNameAdmin] = useState('');
+  const [showWorkshopSwitcher, setShowWorkshopSwitcher] = useState(false);
   const [participantForm, setParticipantForm] = useState({
     name: '',
     email: '',
@@ -103,6 +130,7 @@ const WorkshopTool = () => {
     notes: ''
   });
   const [editingParticipantId, setEditingParticipantId] = useState(null);
+  const [editingParticipantUserId, setEditingParticipantUserId] = useState(null);
   const fileInputRef = useRef(null);
   const [photos, setPhotos] = useState([]);
   const [photosLoading, setPhotosLoading] = useState(false);
@@ -110,6 +138,8 @@ const WorkshopTool = () => {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showPhotoManager, setShowPhotoManager] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(null);
+  const [showPhotoDeleteConfirm, setShowPhotoDeleteConfirm] = useState(false);
+  const [pendingDeletePhotoId, setPendingDeletePhotoId] = useState(null);
   const photoInputRef = useRef(null);
   const [showCameraCapture, setShowCameraCapture] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
@@ -117,10 +147,46 @@ const WorkshopTool = () => {
   const cameraVideoRef = useRef(null);
   const cameraCanvasRef = useRef(null);
   const [splashState, setSplashState] = useState('visible');
+  const [authMode, setAuthMode] = useState('login');
+  const [authForm, setAuthForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'participant',
+    resetEmail: '',
+    resetToken: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
+  const [authUser, setAuthUser] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
+  const accessTokenRef = useRef(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [authInfo, setAuthInfo] = useState('');
+  const [photoPreviews, setPhotoPreviews] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [signupPasswordError, setSignupPasswordError] = useState('');
+  const [signupConfirmError, setSignupConfirmError] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resetConfirmError, setResetConfirmError] = useState('');
+
+  const isAuthenticated = Boolean(authUser && accessToken);
+  const isFacilitator = authUser?.role === 'facilitator';
+  const isAdmin = authUser?.role === 'admin';
 
   const dismissSplashScreen = useCallback(() => {
     setSplashState((prev) => (prev === 'visible' ? 'hiding' : prev));
   }, []);
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
 
   useEffect(() => {
     if (splashState === 'hiding') {
@@ -130,10 +196,13 @@ const WorkshopTool = () => {
     return undefined;
   }, [splashState]);
 
+  const isAppVisible = splashState === 'hidden' && isAuthenticated;
+  const shouldShowAuth = splashState === 'hidden' && !isAuthenticated && !authChecking;
+
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const originalOverflow = document.body.style.overflow;
-    if (splashState !== 'hidden') {
+    if (splashState !== 'hidden' || shouldShowAuth) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -141,7 +210,317 @@ const WorkshopTool = () => {
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [splashState]);
+  }, [splashState, shouldShowAuth]);
+
+  const refreshAccessToken = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = await response.json();
+      if (payload?.accessToken && payload?.user) {
+        setAccessToken(payload.accessToken);
+        accessTokenRef.current = payload.accessToken;
+        setAuthUser(payload.user);
+        return payload.accessToken;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const authFetch = useCallback(async (input, init = {}, retry = true) => {
+    const headers = new Headers(init.headers || {});
+    const token = accessTokenRef.current;
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const response = await fetch(input, {
+      ...init,
+      headers,
+      credentials: 'include'
+    });
+
+    if (response.status === 401 && retry) {
+      const refreshedToken = await refreshAccessToken();
+      if (!refreshedToken) {
+        return response;
+      }
+
+      const retryHeaders = new Headers(init.headers || {});
+      retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
+      return fetch(input, {
+        ...init,
+        headers: retryHeaders,
+        credentials: 'include'
+      });
+    }
+
+    return response;
+  }, [refreshAccessToken]);
+
+  const handleAuthChange = (event) => {
+    const { name, value } = event.target;
+    setAuthForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    setAuthError('');
+    setAuthInfo('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setSignupPasswordError('');
+    setSignupConfirmError('');
+    setResetPasswordError('');
+    setResetConfirmError('');
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setAuthError('');
+    setAuthInfo('');
+    setAuthLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: authForm.email.trim(),
+          password: authForm.password
+        })
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Unable to sign in');
+      }
+
+      setAccessToken(payload.accessToken);
+      accessTokenRef.current = payload.accessToken;
+      setAuthUser(payload.user);
+      setAuthForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+    } catch (error) {
+      setAuthError(error.message || 'Unable to sign in');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignup = async (event) => {
+    event.preventDefault();
+    setAuthError('');
+    setAuthInfo('');
+
+    if (authForm.password !== authForm.confirmPassword) {
+      setAuthError('Passwords do not match.');
+      return;
+    }
+
+    if (!PASSWORD_RULES.test(authForm.password)) {
+      setAuthError('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: authForm.name.trim(),
+          email: authForm.email.trim(),
+          password: authForm.password,
+          role: authForm.role
+        })
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Unable to create account');
+      }
+
+      setAccessToken(payload.accessToken);
+      accessTokenRef.current = payload.accessToken;
+      setAuthUser(payload.user);
+      setAuthForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        role: 'participant'
+      });
+    } catch (error) {
+      setAuthError(error.message || 'Unable to create account');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setAuthLoading(true);
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      // ignore
+    } finally {
+      setAccessToken(null);
+      accessTokenRef.current = null;
+      setAuthUser(null);
+      setShowWorkshops(false);
+      setShowWorkshopDetail(false);
+      setActiveWorkshopId(null);
+      setAuthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const initSession = async () => {
+      await refreshAccessToken();
+      if (isMounted) {
+        setAuthChecking(false);
+      }
+    };
+    initSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshAccessToken]);
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault();
+    setAuthError('');
+    setAuthInfo('');
+    setAuthLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authForm.resetEmail.trim() })
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Unable to start password reset');
+      }
+
+      if (payload?.resetToken) {
+        setAuthInfo(`Reset token (dev only): ${payload.resetToken}`);
+      } else {
+        setAuthInfo('If an account exists, reset instructions will be sent.');
+      }
+    } catch (error) {
+      setAuthError(error.message || 'Unable to start password reset');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (event) => {
+    event.preventDefault();
+    setAuthError('');
+    setAuthInfo('');
+
+    if (resetPasswordError || resetConfirmError) {
+      setAuthError('Please resolve the password requirements first.');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: authForm.resetEmail.trim(),
+          token: authForm.resetToken.trim(),
+          password: authForm.newPassword
+        })
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Unable to reset password');
+      }
+
+      setAuthInfo('Password updated. Please log in with your new password.');
+      setAuthForm((prev) => ({
+        ...prev,
+        resetToken: '',
+        newPassword: '',
+        confirmNewPassword: ''
+      }));
+      switchAuthMode('login');
+    } catch (error) {
+      setAuthError(error.message || 'Unable to reset password');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authMode !== 'signup') {
+      setSignupPasswordError('');
+      setSignupConfirmError('');
+      return;
+    }
+
+    const password = authForm.password || '';
+    const confirmPassword = authForm.confirmPassword || '';
+
+    if (password.length > 0 && !PASSWORD_RULES.test(password)) {
+      setSignupPasswordError('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
+    } else {
+      setSignupPasswordError('');
+    }
+
+    if (confirmPassword.length > 0 && password !== confirmPassword) {
+      setSignupConfirmError('Passwords do not match.');
+    } else {
+      setSignupConfirmError('');
+    }
+  }, [authForm.password, authForm.confirmPassword, authMode]);
+
+  useEffect(() => {
+    if (authMode !== 'reset') {
+      setResetPasswordError('');
+      setResetConfirmError('');
+      return;
+    }
+
+    const password = authForm.newPassword || '';
+    const confirmPassword = authForm.confirmNewPassword || '';
+
+    if (password.length > 0 && !PASSWORD_RULES.test(password)) {
+      setResetPasswordError('Password must be at least 8 characters and include uppercase, lowercase, number, and symbol.');
+    } else {
+      setResetPasswordError('');
+    }
+
+    if (confirmPassword.length > 0 && password !== confirmPassword) {
+      setResetConfirmError('Passwords do not match.');
+    } else {
+      setResetConfirmError('');
+    }
+  }, [authForm.newPassword, authForm.confirmNewPassword, authMode]);
 
   const workshopData = {
     day1: {
@@ -477,6 +856,7 @@ const WorkshopTool = () => {
     return {
       id: photo._id || photo.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       storagePath,
+      fileUrl: photo.fileUrl || null,
       originalName: photo.originalName || photo.filename || 'Workshop photo',
       caption: photo.caption || '',
       notes: photo.notes || '',
@@ -484,6 +864,8 @@ const WorkshopTool = () => {
       phaseIndex: Number.isInteger(photo.phaseIndex) ? photo.phaseIndex : currentPhase,
       moduleId: typeof photo.moduleId === 'string' && photo.moduleId.trim().length > 0 ? photo.moduleId : null,
       participantIds: Array.isArray(photo.participantIds) ? photo.participantIds : [],
+      uploadedBy: photo.uploadedBy || null,
+      workshopId: photo.workshopId || null,
       createdAt: photo.createdAt || new Date().toISOString(),
       updatedAt: photo.updatedAt || photo.createdAt || null,
       mimeType: photo.mimeType || '',
@@ -494,25 +876,42 @@ const WorkshopTool = () => {
   const getPhotoId = (photo) => photo?.id || photo?._id || null;
 
   const buildPhotoUrl = (photo) => {
-    if (!photo?.storagePath) return '';
-    const base = API_BASE_URL.replace(/\/+$/, '');
-    const path = photo.storagePath.replace(/^\/+/, '');
-    return `${base}/${path}`;
+    const id = getPhotoId(photo);
+    if (id && photoPreviews[id]) {
+      return photoPreviews[id];
+    }
+    if (photo?.fileUrl) {
+      const base = API_BASE_URL.replace(/\/+$/, '');
+      const path = photo.fileUrl.startsWith('/') ? photo.fileUrl : `/${photo.fileUrl}`;
+      return `${base}${path}`;
+    }
+    if (photo?.storagePath) {
+      const base = API_BASE_URL.replace(/\/+$/, '');
+      const path = photo.storagePath.replace(/^\/+/, '');
+      return `${base}/${path}`;
+    }
+    return '';
   };
 
   const uploadPhotoFile = async (file) => {
+    if (!isAuthenticated) {
+      throw new Error('Please sign in to upload photos.');
+    }
     const formData = new FormData();
     formData.append('day', String(currentDay));
     formData.append('phaseIndex', String(currentPhase));
     if (module?.id) {
       formData.append('moduleId', module.id);
     }
+    if ((isFacilitator || isAdmin) && activeWorkshopId) {
+      formData.append('workshopId', activeWorkshopId);
+    }
     // Placeholder for participant tagging; currently no participants are selected but
     // the backend expects the field to exist in the payload.
     formData.append('participantIds', '');
     formData.append('photo', file);
 
-    const response = await fetch(`${API_BASE_URL}/api/photos`, {
+    const response = await authFetch(`${API_BASE_URL}/api/photos`, {
       method: 'POST',
       body: formData
     });
@@ -586,11 +985,15 @@ const WorkshopTool = () => {
 
   const closePhotoPreview = () => {
     setActivePhotoIndex(null);
+    setShowPhotoDeleteConfirm(false);
+    setPendingDeletePhotoId(null);
   };
 
   const closePhotoManager = () => {
     setShowPhotoManager(false);
     setActivePhotoIndex(null);
+    setShowPhotoDeleteConfirm(false);
+    setPendingDeletePhotoId(null);
     setPhotosError(null);
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
@@ -689,18 +1092,38 @@ const WorkshopTool = () => {
   const showNextPhoto = (direction) => {
     setActivePhotoIndex((prev) => {
       if (prev === null) return prev;
-      const total = photos.length;
+      const total = visiblePhotos.length;
       if (total === 0) return null;
       const nextIndex = (prev + direction + total) % total;
       return nextIndex;
     });
+    setShowPhotoDeleteConfirm(false);
+    setPendingDeletePhotoId(null);
+  };
+
+  const requestPhotoDelete = (photoId) => {
+    if (!photoId) return;
+    setPendingDeletePhotoId(photoId);
+    setShowPhotoDeleteConfirm(true);
+  };
+
+  const cancelPhotoDelete = () => {
+    setShowPhotoDeleteConfirm(false);
+    setPendingDeletePhotoId(null);
+  };
+
+  const confirmPhotoDelete = async () => {
+    if (!pendingDeletePhotoId) return;
+    await removePhoto(pendingDeletePhotoId);
+    setShowPhotoDeleteConfirm(false);
+    setPendingDeletePhotoId(null);
   };
 
   const removePhoto = async (photoId) => {
     if (!photoId) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/photos/${photoId}`, {
+      const response = await authFetch(`${API_BASE_URL}/api/photos/${photoId}`, {
         method: 'DELETE'
       });
 
@@ -758,6 +1181,27 @@ const WorkshopTool = () => {
     return parts.length ? parts.join(' • ') : 'Captured during workshop';
   };
 
+  const getUploaderLabel = (photo) => {
+    if (!photo?.uploadedBy) return 'Unknown uploader';
+    if (photo.uploadedBy.role === 'facilitator') return `Facilitator: ${photo.uploadedBy.name}`;
+    if (photo.uploadedBy.role === 'participant') return `Participant: ${photo.uploadedBy.name}`;
+    if (photo.uploadedBy.role === 'admin') return 'Workshop Admin';
+    return photo.uploadedBy.name || 'Unknown uploader';
+  };
+
+  const getWorkshopLabel = (workshopId) => {
+    if (!workshopId) return 'Unassigned';
+    const workshop = workshops.find((item) => (item._id || item.id) === String(workshopId))
+      || workshops.find((item) => String(item._id || item.id) === String(workshopId));
+    return workshop?.name || 'Unknown workshop';
+  };
+
+  const getWorkshopParticipantCount = (workshopId) =>
+    participants.filter((participant) => String(participant.workshopId || '') === String(workshopId)).length;
+
+  const getWorkshopPhotoCount = (workshopId) =>
+    photos.filter((photo) => String(photo.workshopId || '') === String(workshopId)).length;
+
   const formatTime = (seconds) => {
     if (seconds === null) return '--:--';
     const mins = Math.floor(seconds / 60);
@@ -814,7 +1258,72 @@ const WorkshopTool = () => {
 
   const PhaseIcon = phase.icon;
   const participantCount = participants.length;
+  const participantCountForButton = useMemo(() => {
+    if (!isFacilitator) return participantCount;
+    if (!activeWorkshopId) return 0;
+    return participants.filter((participant) => String(participant.workshopId || '') === String(activeWorkshopId)).length;
+  }, [participants, activeWorkshopId, isFacilitator, participantCount]);
   const overlayStateClass = splashState === 'visible' ? 'splash-overlay-visible' : splashState === 'hiding' ? 'splash-overlay-hiding' : '';
+
+  const activeWorkshop = useMemo(
+    () => workshops.find((workshop) => (workshop._id || workshop.id) === activeWorkshopId) || null,
+    [activeWorkshopId, workshops]
+  );
+
+  useEffect(() => {
+    if (activeWorkshop?.name) {
+      setWorkshopEditName(activeWorkshop.name);
+      setIsEditingWorkshopName(false);
+    }
+  }, [activeWorkshop]);
+
+  const visibleParticipants = useMemo(() => {
+    if (!activeWorkshopId) return participants;
+    return participants.filter((participant) => {
+      const workshopId = participant.workshopId || participant.workshop || null;
+      return String(workshopId || '') === String(activeWorkshopId);
+    });
+  }, [participants, activeWorkshopId]);
+
+  const visibleParticipantsForFacilitator = useMemo(() => {
+    if (!isFacilitator) return participants;
+    if (!activeWorkshopId) {
+      return participants.filter((participant) => !participant.workshopId);
+    }
+    const scopedParticipants = participants.filter((participant) =>
+      !participant.workshopId || String(participant.workshopId) === String(activeWorkshopId)
+    );
+    const assigned = scopedParticipants.filter((participant) => participant.workshopId);
+    const unassigned = scopedParticipants.filter((participant) => !participant.workshopId);
+    return [...assigned, ...unassigned];
+  }, [participants, activeWorkshopId, isFacilitator]);
+
+  const unassignedParticipants = useMemo(() =>
+    participants.filter((participant) => !participant.workshopId),
+    [participants]
+  );
+
+  const adminUnassignedPhotos = useMemo(
+    () => photos.filter((photo) => !photo.workshopId),
+    [photos]
+  );
+
+  const workshopScopedPhotos = useMemo(() => {
+    if (!activeWorkshopId) return [];
+    return photos.filter((photo) => String(photo.workshopId || '') === String(activeWorkshopId));
+  }, [photos, activeWorkshopId]);
+
+  const visiblePhotos = useMemo(() => {
+    if (isAdmin) {
+      return activeWorkshopId ? workshopScopedPhotos : adminUnassignedPhotos;
+    }
+    if (!activeWorkshopId) return photos;
+    return photos.filter((photo) => String(photo.workshopId || '') === String(activeWorkshopId));
+  }, [photos, activeWorkshopId, isAdmin, adminUnassignedPhotos, workshopScopedPhotos]);
+
+  const photoCountForButton = isAdmin
+    ? adminUnassignedPhotos.length + workshopScopedPhotos.length
+    : visiblePhotos.length;
 
   useEffect(() => {
     try {
@@ -829,12 +1338,20 @@ const WorkshopTool = () => {
     const controller = new AbortController();
 
     const fetchParticipants = async () => {
+      if (!isAuthenticated || (!isFacilitator && !isAdmin)) {
+        if (isMounted) {
+          setParticipants([]);
+          setParticipantsLoading(false);
+          setParticipantsError(null);
+        }
+        return;
+      }
       if (isMounted) {
         setParticipantsLoading(true);
         setParticipantsError(null);
       }
       try {
-        const response = await fetch(`${API_BASE_URL}/api/participants`, {
+        const response = await authFetch(`${API_BASE_URL}/api/participants`, {
           signal: controller.signal
         });
         if (!response.ok) {
@@ -863,20 +1380,174 @@ const WorkshopTool = () => {
       isMounted = false;
       controller.abort();
     };
-  }, []);
+  }, [authFetch, isFacilitator, isAdmin, isAuthenticated]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchFacilitators = async () => {
+      if (!isAuthenticated || !isAdmin) {
+        if (isMounted) {
+          setFacilitators([]);
+          setFacilitatorsLoading(false);
+          setFacilitatorsError(null);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setFacilitatorsLoading(true);
+        setFacilitatorsError(null);
+      }
+
+      try {
+        const response = await authFetch(`${API_BASE_URL}/api/users?role=facilitator`, {
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          throw new Error('Failed to load facilitators');
+        }
+        const data = await response.json();
+        if (isMounted) {
+          setFacilitators(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Failed to load facilitators', error);
+        if (isMounted) {
+          setFacilitatorsError(error.message || 'Failed to load facilitators');
+        }
+      } finally {
+        if (isMounted) {
+          setFacilitatorsLoading(false);
+        }
+      }
+    };
+
+    fetchFacilitators();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [authFetch, isAdmin, isAuthenticated]);
+
+  const loadParticipantAccounts = useCallback(async (signal) => {
+    if (!isAuthenticated || (!isAdmin && !isFacilitator)) {
+      setParticipantAccounts([]);
+      setParticipantAccountsLoading(false);
+      setParticipantAccountsError(null);
+      return;
+    }
+
+    setParticipantAccountsLoading(true);
+    setParticipantAccountsError(null);
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/users?role=participant`, {
+        signal
+      });
+      if (!response.ok) {
+        throw new Error('Failed to load participant accounts');
+      }
+      const data = await response.json();
+      setParticipantAccounts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      console.error('Failed to load participant accounts', error);
+      setParticipantAccountsError(error.message || 'Failed to load participant accounts');
+    } finally {
+      setParticipantAccountsLoading(false);
+    }
+  }, [authFetch, isAdmin, isFacilitator, isAuthenticated]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadParticipantAccounts(controller.signal);
+    return () => controller.abort();
+  }, [loadParticipantAccounts]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchWorkshops = async () => {
+      if (!isAuthenticated || (!isFacilitator && !isAdmin)) {
+        if (isMounted) {
+          setWorkshops([]);
+          setWorkshopsLoading(false);
+          setWorkshopsError(null);
+          setActiveWorkshopId(null);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setWorkshopsLoading(true);
+        setWorkshopsError(null);
+      }
+
+      try {
+        const response = await authFetch(`${API_BASE_URL}/api/workshops`, {
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          throw new Error('Failed to load workshops');
+        }
+        const data = await response.json();
+        if (isMounted) {
+          const workshopList = Array.isArray(data) ? data : [];
+          setWorkshops(workshopList);
+          if (isFacilitator && workshopList.length > 0) {
+            const currentId = String(activeWorkshopId || '');
+            const hasCurrent = workshopList.some((workshop) => String(workshop._id || workshop.id) === currentId);
+            if (!hasCurrent) {
+              setActiveWorkshopId(workshopList[0]._id || workshopList[0].id || null);
+            }
+          }
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.error('Failed to load workshops', error);
+        if (isMounted) {
+          setWorkshopsError(error.message || 'Failed to load workshops');
+        }
+      } finally {
+        if (isMounted) {
+          setWorkshopsLoading(false);
+        }
+      }
+    };
+
+    fetchWorkshops();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [authFetch, isFacilitator, isAdmin, isAuthenticated]);
 
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
     const fetchPhotos = async () => {
+      if (!isAuthenticated) {
+        if (isMounted) {
+          setPhotos([]);
+          setPhotosLoading(false);
+          setPhotosError(null);
+        }
+        return;
+      }
       if (isMounted) {
         setPhotosLoading(true);
         setPhotosError(null);
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/photos`, {
+        const response = await authFetch(`${API_BASE_URL}/api/photos`, {
           signal: controller.signal
         });
 
@@ -913,7 +1584,66 @@ const WorkshopTool = () => {
       isMounted = false;
       controller.abort();
     };
-  }, [normalizePhoto]);
+  }, [normalizePhoto, isAuthenticated, authFetch]);
+
+  useEffect(() => {
+    setPhotoPreviews((prev) => {
+      const next = {};
+      photos.forEach((photo) => {
+        const id = getPhotoId(photo);
+        if (id && prev[id]) {
+          next[id] = prev[id];
+        }
+      });
+
+      Object.entries(prev).forEach(([id, url]) => {
+        if (!next[id]) {
+          URL.revokeObjectURL(url);
+        }
+      });
+
+      return next;
+    });
+  }, [photos]);
+
+  useEffect(() => {
+    if (!isAuthenticated || photos.length === 0) return undefined;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const loadPreviews = async () => {
+      const pending = photos.filter((photo) => photo.fileUrl && !photoPreviews[getPhotoId(photo)]);
+      for (const photo of pending) {
+        const id = getPhotoId(photo);
+        if (!id) continue;
+        try {
+          const response = await authFetch(`${API_BASE_URL}${photo.fileUrl}`, {
+            method: 'GET',
+            signal: controller.signal
+          });
+          if (!response.ok) {
+            continue;
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          if (isMounted) {
+            setPhotoPreviews((prev) => ({ ...prev, [id]: url }));
+          } else {
+            URL.revokeObjectURL(url);
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+        }
+      }
+    };
+
+    loadPreviews();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [photos, isAuthenticated, authFetch, photoPreviews]);
 
   useEffect(() => {
     const videoElement = cameraVideoRef.current;
@@ -939,6 +1669,13 @@ const WorkshopTool = () => {
     };
   }, [cameraStream]);
 
+  useEffect(() => {
+    if (activePhotoIndex === null) return;
+    if (activePhotoIndex >= visiblePhotos.length) {
+      setActivePhotoIndex(null);
+    }
+  }, [activePhotoIndex, visiblePhotos.length]);
+
   const resetParticipantForm = () => {
     setParticipantForm({
       name: '',
@@ -948,6 +1685,7 @@ const WorkshopTool = () => {
       notes: ''
     });
     setEditingParticipantId(null);
+    setEditingParticipantUserId(null);
   };
 
   const handleParticipantChange = (event) => {
@@ -962,11 +1700,20 @@ const WorkshopTool = () => {
 
     const payload = {
       name: trimmedName,
-      email: participantForm.email.trim(),
       dietary: participantForm.dietary.trim(),
       cultural: participantForm.cultural.trim(),
       notes: participantForm.notes.trim()
     };
+
+    if (!editingParticipantId || !editingParticipantUserId) {
+      payload.email = participantForm.email.trim();
+    }
+
+    if (isAdmin && selectedWorkshopId) {
+      payload.workshopId = selectedWorkshopId;
+    } else if (activeWorkshopId) {
+      payload.workshopId = activeWorkshopId;
+    }
 
     const isEditing = Boolean(editingParticipantId);
     const endpoint = isEditing
@@ -974,7 +1721,7 @@ const WorkshopTool = () => {
       : `${API_BASE_URL}/api/participants`;
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1015,7 +1762,7 @@ const WorkshopTool = () => {
       notes: participant.notes ?? ''
     });
     setEditingParticipantId(participant._id || participant.id || null);
-    setShowParticipants(true);
+    setEditingParticipantUserId(participant.userId || null);
   };
 
   const handleDeleteParticipant = async (participant) => {
@@ -1030,7 +1777,7 @@ const WorkshopTool = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/participants/${participantId}`, {
+      const response = await authFetch(`${API_BASE_URL}/api/participants/${participantId}`, {
         method: 'DELETE'
       });
       if (!response.ok && response.status !== 204) {
@@ -1041,18 +1788,392 @@ const WorkshopTool = () => {
       if (editingParticipantId === participantId) {
         resetParticipantForm();
       }
+      if (participant?.userId) {
+        loadParticipantAccounts();
+      }
     } catch (error) {
       console.error('Failed to delete participant', error);
       window.alert('Could not delete participant. Please try again.');
     }
   };
 
+  const handleAssignParticipant = async (participant) => {
+    if (!activeWorkshopId) return;
+    const participantId = participant?._id || participant?.id;
+    if (!participantId) return;
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/participants/${participantId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ workshopId: activeWorkshopId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign participant');
+      }
+
+      const updatedParticipant = await response.json();
+      setParticipants((prev) =>
+        prev.map((item) => ((item._id || item.id) === participantId ? updatedParticipant : item))
+      );
+      setAssigningParticipantId(null);
+    } catch (error) {
+      console.error('Failed to assign participant', error);
+      window.alert('Could not assign participant. Please try again.');
+    }
+  };
+
+  const requestDeleteOwnWorkshop = () => {
+    if (!activeWorkshopId || !activeWorkshop) return;
+    setShowFacilitatorWorkshopDeleteConfirm(true);
+  };
+
+  const cancelDeleteOwnWorkshop = () => {
+    setShowFacilitatorWorkshopDeleteConfirm(false);
+  };
+
+  const confirmDeleteOwnWorkshop = async () => {
+    if (!activeWorkshopId || !activeWorkshop) return;
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/workshops/${activeWorkshopId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete workshop');
+      }
+
+      setWorkshops((prev) => prev.filter((item) => (item._id || item.id) !== activeWorkshopId));
+      setParticipants((prev) =>
+        prev.map((participant) =>
+          String(participant.workshopId || '') === String(activeWorkshopId)
+            ? { ...participant, workshopId: null }
+            : participant
+        )
+      );
+      setActiveWorkshopId(null);
+      setIsEditingWorkshopName(false);
+      setWorkshopEditName('');
+      setShowFacilitatorWorkshopDeleteConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete workshop', error);
+      window.alert('Could not delete workshop. Please try again.');
+    }
+  };
+
+  const handleWorkshopFormChange = (event) => {
+    const { name, value } = event.target;
+    setWorkshopForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateWorkshop = async (event) => {
+    event.preventDefault();
+    if (!workshopForm.name.trim()) return;
+
+    try {
+      const payload = {
+        name: workshopForm.name.trim()
+      };
+      if (isAdmin) {
+        payload.facilitatorId = workshopForm.facilitatorId || null;
+      }
+      const response = await authFetch(`${API_BASE_URL}/api/workshops`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create workshop');
+      }
+
+      const createdWorkshop = await response.json();
+      setWorkshops((prev) => [createdWorkshop, ...prev]);
+      setWorkshopForm({ name: '', facilitatorId: '' });
+    } catch (error) {
+      console.error('Failed to create workshop', error);
+      window.alert('Could not create workshop. Please try again.');
+    }
+  };
+
+  const handleAssignWorkshopFacilitator = async (workshop, facilitatorId) => {
+    if (!workshop || !facilitatorId) return;
+    const workshopId = workshop._id || workshop.id;
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/workshops/${workshopId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ facilitatorId })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign facilitator');
+      }
+
+      const updatedWorkshop = await response.json();
+      setWorkshops((prev) =>
+        prev.map((item) => ((item._id || item.id) === (updatedWorkshop._id || updatedWorkshop.id) ? updatedWorkshop : item))
+      );
+    } catch (error) {
+      console.error('Failed to assign facilitator', error);
+      window.alert('Could not assign facilitator. Please try again.');
+    }
+  };
+
+  const handleUpdateWorkshopName = async () => {
+    if (!activeWorkshopId || !workshopEditName.trim()) return;
+    setWorkshopSaving(true);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/workshops/${activeWorkshopId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: workshopEditName.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update workshop');
+      }
+
+      const updatedWorkshop = await response.json();
+      setWorkshops((prev) =>
+        prev.map((item) => ((item._id || item.id) === (updatedWorkshop._id || updatedWorkshop.id) ? updatedWorkshop : item))
+      );
+    } catch (error) {
+      console.error('Failed to update workshop', error);
+      window.alert('Could not update workshop name. Please try again.');
+    } finally {
+      setWorkshopSaving(false);
+    }
+  };
+
+  const beginWorkshopNameEdit = (workshop) => {
+    const workshopId = workshop?._id || workshop?.id;
+    if (!workshopId) return;
+    setAssigningWorkshopEditId(workshopId);
+    setWorkshopEditNameAdmin(workshop.name || '');
+  };
+
+  const cancelWorkshopNameAdmin = () => {
+    setAssigningWorkshopEditId(null);
+    setWorkshopEditNameAdmin('');
+  };
+
+  const handleSaveWorkshopNameAdmin = async (workshop) => {
+    if (!workshop) return;
+    const workshopId = workshop._id || workshop.id;
+    if (!workshopId || !workshopEditNameAdmin.trim()) return;
+    setWorkshopSaving(true);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/workshops/${workshopId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: workshopEditNameAdmin.trim() })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update workshop');
+      }
+      const updatedWorkshop = await response.json();
+      setWorkshops((prev) =>
+        prev.map((item) => ((item._id || item.id) === (updatedWorkshop._id || updatedWorkshop.id) ? updatedWorkshop : item))
+      );
+      cancelWorkshopNameAdmin();
+    } catch (error) {
+      console.error('Failed to update workshop', error);
+      window.alert('Could not update workshop name. Please try again.');
+    } finally {
+      setWorkshopSaving(false);
+    }
+  };
+
+  const handleSetParticipantWorkshop = async (participant, workshopId) => {
+    const participantId = participant?._id || participant?.id;
+    if (!participantId) return;
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/participants/${participantId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ workshopId: workshopId || null })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update participant');
+      }
+
+      const updatedParticipant = await response.json();
+      setParticipants((prev) =>
+        prev.map((item) => ((item._id || item.id) === participantId ? updatedParticipant : item))
+      );
+    } catch (error) {
+      console.error('Failed to update participant workshop', error);
+      window.alert('Could not update participant. Please try again.');
+    }
+  };
+
+  const beginAssignParticipant = (participant) => {
+    const participantId = participant?._id || participant?.id;
+    if (!participantId) return;
+    setAssigningParticipantId(participantId);
+  };
+
+  const cancelAssignParticipant = () => {
+    setAssigningParticipantId(null);
+  };
+
+  const confirmAssignParticipant = (participant) => {
+    if (!selectedWorkshopId) return;
+    handleSetParticipantWorkshop(participant, selectedWorkshopId);
+    setAssigningParticipantId(null);
+  };
+
+  const beginAssignAccount = (account) => {
+    const accountId = account?._id || account?.id;
+    if (!accountId) return;
+    setAssigningAccountId(accountId);
+    setSelectedWorkshopId('');
+  };
+
+  const cancelAssignAccount = () => {
+    setAssigningAccountId(null);
+    setSelectedWorkshopId('');
+  };
+
+  const confirmAssignAccount = async (account) => {
+    const targetWorkshopId = isAdmin ? selectedWorkshopId : activeWorkshopId;
+    if (!targetWorkshopId) return;
+    const name = (account?.name || '').trim() || (account?.email ? account.email.split('@')[0] : 'Participant');
+    const email = (account?.email || '').trim();
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/participants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          workshopId: targetWorkshopId,
+          userId: account._id || account.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to register participant');
+      }
+
+      const createdParticipant = await response.json();
+      setParticipants((prev) => [createdParticipant, ...prev]);
+      setParticipantAccounts((prev) =>
+        prev.filter((item) => (item._id || item.id) !== (account._id || account.id))
+      );
+      setAssigningAccountId(null);
+      if (isAdmin) {
+        setSelectedWorkshopId('');
+      }
+    } catch (error) {
+      console.error('Failed to register participant from account', error);
+      window.alert('Could not assign this account. Please try again.');
+    }
+  };
+
+  const handleDeleteWorkshop = async (workshop) => {
+    if (!workshop) return;
+    setPendingWorkshopDelete(workshop);
+    setShowWorkshopDeleteConfirm(true);
+  };
+
+  const cancelWorkshopDelete = () => {
+    setPendingWorkshopDelete(null);
+    setShowWorkshopDeleteConfirm(false);
+  };
+
+  const confirmWorkshopDelete = async () => {
+    if (!pendingWorkshopDelete) return;
+    const workshopId = pendingWorkshopDelete._id || pendingWorkshopDelete.id;
+    if (!workshopId) return;
+
+    try {
+      const response = await authFetch(`${API_BASE_URL}/api/workshops/${workshopId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok && response.status !== 204) {
+        throw new Error('Failed to delete workshop');
+      }
+
+      setWorkshops((prev) => prev.filter((item) => (item._id || item.id) !== workshopId));
+      setPhotos((prev) => prev.filter((photo) => String(photo.workshopId || '') !== String(workshopId)));
+      if (String(activeWorkshopId || '') === String(workshopId)) {
+        setActiveWorkshopId(null);
+      }
+      setPendingWorkshopDelete(null);
+      setShowWorkshopDeleteConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete workshop', error);
+      window.alert('Could not delete workshop. Please try again.');
+    }
+  };
+
   const handleExportParticipants = () => {
-    const blob = new Blob([JSON.stringify(participants, null, 2)], { type: 'application/json' });
+    const workshopById = new Map(
+      workshops.map((workshop) => [String(workshop._id || workshop.id), workshop])
+    );
+    const facilitatorsWithWorkshops = facilitators.map((facilitator) => {
+      const facilitatorId = facilitator._id || facilitator.id;
+      const assignedWorkshops = workshops.filter(
+        (workshop) => String(workshop.facilitatorId?._id || workshop.facilitatorId || '') === String(facilitatorId)
+      );
+      return {
+        ...facilitator,
+        workshops: assignedWorkshops.map((workshop) => ({
+          _id: workshop._id || workshop.id,
+          name: workshop.name,
+          archivedAt: workshop.archivedAt || null
+        }))
+      };
+    });
+    const participantsWithWorkshops = participants.map((participant) => {
+      const workshop = participant.workshopId
+        ? workshopById.get(String(participant.workshopId))
+        : null;
+      const facilitator = workshop?.facilitatorId || null;
+      return {
+        ...participant,
+        workshop: workshop
+          ? { _id: workshop._id || workshop.id, name: workshop.name, archivedAt: workshop.archivedAt || null }
+          : null,
+        facilitator: facilitator
+          ? { _id: facilitator._id || facilitator.id, name: facilitator.name, email: facilitator.email }
+          : null
+      };
+    });
+    const payload = isAdmin
+      ? {
+          facilitators: facilitatorsWithWorkshops,
+          registeredParticipants: participantsWithWorkshops,
+          participantAccounts: participantAccounts
+        }
+      : participants;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'participants.json';
+    link.download = isAdmin ? 'participants-export.json' : 'participants.json';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1096,6 +2217,29 @@ const WorkshopTool = () => {
 
   const handleCloseParticipants = () => {
     setShowParticipants(false);
+    resetParticipantForm();
+    setAssigningParticipantId(null);
+    setAssigningAccountId(null);
+    setSelectedWorkshopId('');
+  };
+
+  const openWorkshopCreator = () => {
+    handleCloseParticipants();
+    setWorkshopForm({ name: '', facilitatorId: '' });
+    setShowWorkshops(true);
+  };
+
+  const openWorkshopDetail = (workshopId) => {
+    setActiveWorkshopId(workshopId);
+    setShowWorkshopDetail(true);
+    setShowWorkshops(false);
+  };
+
+  const closeWorkshopDetail = () => {
+    setShowWorkshopDetail(false);
+    if (isAdmin) {
+      setActiveWorkshopId(null);
+    }
     resetParticipantForm();
   };
 
@@ -1147,11 +2291,426 @@ const WorkshopTool = () => {
           </div>
         </div>
       )}
+      {splashState === 'hidden' && authChecking && (
+        <div className="min-h-screen flex items-center justify-center bg-relish-paper px-6">
+          <div className="bg-white/90 border border-relish-linen rounded-[28px] p-8 shadow-relish-card text-center">
+            <p className="text-xs uppercase tracking-[0.35em] text-relish-smoke">Relish methodology</p>
+            <p className="mt-3 text-xl font-display text-relish-ink">Checking your session…</p>
+            <p className="text-sm text-relish-ink-muted mt-2">Please wait while we confirm your access.</p>
+          </div>
+        </div>
+      )}
+      {shouldShowAuth && (
+        <div className="h-screen bg-relish-paper flex items-start justify-center px-6 py-8 relative overflow-hidden">
+          <img
+            src={img2}
+            alt=""
+            aria-hidden="true"
+            className="absolute top-[15%] right-0 w-[28vw] max-w-[300px] pointer-events-none"
+          />
+          <img
+            src={img3}
+            alt=""
+            aria-hidden="true"
+            className="absolute bottom-[10%] left-0 w-[30vw] max-w-[320px] pointer-events-none"
+          />
+          <div className="relative z-10 w-full max-w-5xl max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="flex justify-center mb-12">
+              <div className="auth-logo-frame">
+                <img
+                  src={logoPng}
+                  alt="Food Memories Workshop logo"
+                  className="splash-logo"
+                />
+              </div>
+            </div>
+            <div className="grid gap-8 md:grid-cols-[1.2fr,1fr] mt-8">
+            <div className="space-y-4">
+              <p className="text-xs uppercase tracking-[0.35em] text-relish-smoke font-semibold">Relish methodology</p>
+              <h2 className="text-4xl font-display text-relish-ink">Welcome back to the Food Memories Workshop</h2>
+              <p className="text-base text-relish-ink-muted">
+                Sign in to continue documenting culinary memory, or create a secure account to start uploading your own workshop photos.
+              </p>
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-relish-linen bg-white/80 px-4 py-2 text-xs uppercase tracking-[0.3em] text-relish-smoke">
+                Preserved recipes • Protected memories
+              </div>
+            </div>
+            <div className="bg-white/95 border border-relish-linen rounded-[28px] shadow-relish-card p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode('login')}
+                  className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    authMode === 'login'
+                      ? 'bg-relish-ink text-white'
+                      : 'border border-relish-linen text-relish-ink hover:bg-relish-paper'
+                  }`}
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode('signup')}
+                  className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    authMode === 'signup'
+                      ? 'bg-relish-ink text-white'
+                      : 'border border-relish-linen text-relish-ink hover:bg-relish-paper'
+                  }`}
+                >
+                  Sign up
+                </button>
+              </div>
+              {authError && (
+                <div className="mb-4 px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
+                  {authError}
+                </div>
+              )}
+              {authInfo && (
+                <div className="mb-4 px-4 py-3 bg-white/80 border border-relish-linen text-relish-ink rounded-2xl">
+                  {authInfo}
+                </div>
+              )}
+              {authMode === 'login' ? (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-email">
+                      Email
+                    </label>
+                    <input
+                      id="auth-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={authForm.email}
+                      onChange={handleAuthChange}
+                      placeholder="name@email.com"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-password">
+                      Password
+                    </label>
+                    <input
+                      id="auth-password"
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={authForm.password}
+                      onChange={handleAuthChange}
+                      placeholder="Enter your password"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="w-full px-5 py-3 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? 'Signing in…' : 'Log in'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode('forgot')}
+                    className="w-full text-sm text-relish-ink-muted hover:text-relish-ink"
+                  >
+                    Forgot your password?
+                  </button>
+                </form>
+              ) : authMode === 'signup' ? (
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-name">
+                      Full name
+                    </label>
+                    <input
+                      id="auth-name"
+                      name="name"
+                      type="text"
+                      autoComplete="name"
+                      value={authForm.name}
+                      onChange={handleAuthChange}
+                      placeholder="Your name"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-signup-email">
+                      Email
+                    </label>
+                    <input
+                      id="auth-signup-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={authForm.email}
+                      onChange={handleAuthChange}
+                      placeholder="name@email.com"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-role">
+                      Account role
+                    </label>
+                    <select
+                      id="auth-role"
+                      name="role"
+                      value={authForm.role}
+                      onChange={handleAuthChange}
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                    >
+                      <option value="participant">Participant</option>
+                      <option value="facilitator">Facilitator</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-signup-password">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-signup-password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={authForm.password}
+                        onChange={handleAuthChange}
+                        placeholder="Create a strong password"
+                        className={`w-full px-4 py-3 border rounded-2xl bg-white/90 text-relish-ink focus:outline-none ${
+                          signupPasswordError
+                            ? 'border-relish-accent focus:border-relish-accent'
+                            : 'border-relish-linen focus:border-relish-ink'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-relish-ink-muted hover:text-relish-ink"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-relish-ink-muted">
+                      Minimum 8 characters, with uppercase, lowercase, number, and symbol.
+                    </p>
+                    {signupPasswordError && (
+                      <p className="mt-2 text-xs text-relish-accent">{signupPasswordError}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-confirm-password">
+                      Confirm password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-confirm-password"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={authForm.confirmPassword}
+                        onChange={handleAuthChange}
+                        placeholder="Re-enter your password"
+                        className={`w-full px-4 py-3 border rounded-2xl bg-white/90 text-relish-ink focus:outline-none ${
+                          signupConfirmError
+                            ? 'border-relish-accent focus:border-relish-accent'
+                            : 'border-relish-linen focus:border-relish-ink'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-relish-ink-muted hover:text-relish-ink"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                    {signupConfirmError && (
+                      <p className="mt-2 text-xs text-relish-accent">{signupConfirmError}</p>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={authLoading || Boolean(signupPasswordError) || Boolean(signupConfirmError)}
+                    className="w-full px-5 py-3 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? 'Creating account…' : 'Create account'}
+                  </button>
+                </form>
+              ) : authMode === 'forgot' ? (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-forgot-email">
+                      Email
+                    </label>
+                    <input
+                      id="auth-forgot-email"
+                      name="resetEmail"
+                      type="email"
+                      autoComplete="email"
+                      value={authForm.resetEmail}
+                      onChange={handleAuthChange}
+                      placeholder="name@email.com"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="w-full px-5 py-3 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? 'Sending…' : 'Send reset instructions'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode('reset')}
+                    className="w-full text-sm text-relish-ink-muted hover:text-relish-ink"
+                  >
+                    I already have a reset code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode('login')}
+                    className="w-full text-sm text-relish-ink-muted hover:text-relish-ink"
+                  >
+                    Back to log in
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-reset-email">
+                      Email
+                    </label>
+                    <input
+                      id="auth-reset-email"
+                      name="resetEmail"
+                      type="email"
+                      autoComplete="email"
+                      value={authForm.resetEmail}
+                      onChange={handleAuthChange}
+                      placeholder="name@email.com"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-reset-token">
+                      Reset code
+                    </label>
+                    <input
+                      id="auth-reset-token"
+                      name="resetToken"
+                      type="text"
+                      autoComplete="one-time-code"
+                      value={authForm.resetToken}
+                      onChange={handleAuthChange}
+                      placeholder="Enter reset code"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-new-password">
+                      New password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-new-password"
+                        name="newPassword"
+                        type={showNewPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={authForm.newPassword}
+                        onChange={handleAuthChange}
+                        placeholder="Create a strong password"
+                        className={`w-full px-4 py-3 border rounded-2xl bg-white/90 text-relish-ink focus:outline-none ${
+                          resetPasswordError
+                            ? 'border-relish-accent focus:border-relish-accent'
+                            : 'border-relish-linen focus:border-relish-ink'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-relish-ink-muted hover:text-relish-ink"
+                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showNewPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                    {resetPasswordError && (
+                      <p className="mt-2 text-xs text-relish-accent">{resetPasswordError}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-confirm-new-password">
+                      Confirm new password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="auth-confirm-new-password"
+                        name="confirmNewPassword"
+                        type={showConfirmNewPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={authForm.confirmNewPassword}
+                        onChange={handleAuthChange}
+                        placeholder="Re-enter your password"
+                        className={`w-full px-4 py-3 border rounded-2xl bg-white/90 text-relish-ink focus:outline-none ${
+                          resetConfirmError
+                            ? 'border-relish-accent focus:border-relish-accent'
+                            : 'border-relish-linen focus:border-relish-ink'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmNewPassword((prev) => !prev)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-relish-ink-muted hover:text-relish-ink"
+                        aria-label={showConfirmNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmNewPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                    {resetConfirmError && (
+                      <p className="mt-2 text-xs text-relish-accent">{resetConfirmError}</p>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={authLoading || Boolean(resetPasswordError) || Boolean(resetConfirmError)}
+                    className="w-full px-5 py-3 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {authLoading ? 'Updating…' : 'Reset password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAuthMode('login')}
+                    className="w-full text-sm text-relish-ink-muted hover:text-relish-ink"
+                  >
+                    Back to log in
+                  </button>
+                </form>
+              )}
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className={`main-app-shell transition-opacity duration-500 ${
-          splashState === 'hidden' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          isAppVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-        aria-hidden={splashState !== 'hidden'}
+        aria-hidden={!isAppVisible}
       >
       {/* Background cover image */}
       <img
@@ -1182,18 +2741,29 @@ const WorkshopTool = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors"
               >
                 <Images size={18} />
-                Photos ({photos.length})
+                Photos ({photoCountForButton})
               </button>
-              <button
-                onClick={() => {
-                  resetParticipantForm();
-                  setShowParticipants(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-warm bg-white text-relish-ink shadow-sm hover:bg-relish-paper transition-colors"
-              >
-                <UserPlus size={18} />
-                Participants ({participantCount})
-              </button>
+              {(isFacilitator || isAdmin) && (
+                <button
+                  onClick={() => {
+                    resetParticipantForm();
+                    setShowParticipants(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-warm bg-white text-relish-ink shadow-sm hover:bg-relish-paper transition-colors"
+                >
+                  <UserPlus size={18} />
+                  Participants ({participantCountForButton})
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowWorkshops(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-relish-warm bg-white text-relish-ink shadow-sm hover:bg-relish-paper transition-colors"
+                >
+                  <UserPlus size={18} />
+                  Workshops ({workshops.length})
+                </button>
+              )}
               <button
                 onClick={() => setShowTimerSettings(!showTimerSettings)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition-colors ${
@@ -1219,6 +2789,58 @@ const WorkshopTool = () => {
                 <CheckCircle size={18} />
                 Checklist
               </button>
+              {authUser && (
+                <div className="flex flex-wrap items-center gap-2 px-4 py-2 rounded-full border border-relish-linen bg-white text-relish-ink shadow-sm">
+                  {isAdmin ? (
+                    <span className="text-sm font-semibold">Workshop Admin</span>
+                  ) : (
+                    <>
+                      <span className="text-xs uppercase tracking-[0.25em] text-relish-smoke">{authUser.role}</span>
+                      <span className="text-sm font-semibold">{authUser.name}</span>
+                    </>
+                  )}
+                  {isFacilitator && activeWorkshop && (
+                    <span className="ml-1 px-3 py-1 rounded-full bg-relish-paper text-relish-ink text-xs uppercase tracking-[0.2em]">
+                      Active workshop: {activeWorkshop.name}
+                    </span>
+                  )}
+                  {isFacilitator && workshops.length > 1 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowWorkshopSwitcher((prev) => !prev)}
+                        className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white transition-colors"
+                      >
+                        Change
+                      </button>
+                      {showWorkshopSwitcher && (
+                        <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-relish-linen bg-white shadow-relish-card p-2 z-50">
+                          <select
+                            value={activeWorkshopId || ''}
+                            onChange={(event) => {
+                              setActiveWorkshopId(event.target.value);
+                              setShowWorkshopSwitcher(false);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-relish-linen bg-white text-relish-ink text-xs uppercase tracking-[0.2em] focus:border-relish-ink focus:outline-none"
+                          >
+                            {workshops.map((workshop) => (
+                              <option key={workshop._id || workshop.id} value={workshop._id || workshop.id}>
+                                {workshop.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    disabled={authLoading}
+                    className="ml-2 px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1603,8 +3225,12 @@ const WorkshopTool = () => {
       {/* Photo Manager Modal */}
       {showPhotoManager && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white/95 rounded-[32px] shadow-relish-card max-w-6xl w-full max-h-[90vh] flex flex-col border border-relish-linen overflow-hidden">
-            <div className="p-6 border-b border-relish-linen flex items-center justify-between bg-white/80">
+          <div className="relative bg-white/95 rounded-[32px] shadow-relish-card max-w-6xl w-full max-h-[90vh] flex flex-col border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen flex items-center justify-between bg-white/80">
               <div>
                 <h3 className="text-2xl font-display text-relish-ink">Workshop Photo Library</h3>
                 <p className="text-sm text-relish-ink-muted">Document memory maps, cooking sessions, and collaborative moments.</p>
@@ -1635,10 +3261,10 @@ const WorkshopTool = () => {
                 </button>
               </div>
             </div>
-            <div className="p-6 flex-1 flex flex-col gap-4 overflow-hidden">
+            <div className="relative p-6 flex-1 flex flex-col gap-4 overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-relish-ink font-semibold">
-                  {photos.length} photo{photos.length === 1 ? '' : 's'} stored
+                  {visiblePhotos.length} photo{visiblePhotos.length === 1 ? '' : 's'} stored
                 </div>
                 <div className="text-xs text-relish-ink-muted">
                   Accepts JPG, PNG, WebP, HEIC • Max {Math.round(PHOTO_MAX_SIZE_BYTES / (1024 * 1024))}MB per image
@@ -1651,28 +3277,665 @@ const WorkshopTool = () => {
                 </div>
               )}
               <div className="flex-1 overflow-auto">
-                {photosLoading && photos.length === 0 ? (
+                {isAdmin && (
+                  <div className="mb-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xl font-display text-relish-ink">Workshops</h4>
+                        <p className="text-sm text-relish-ink-muted">Select a workshop to view its archive.</p>
+                      </div>
+                    </div>
+                    {workshopsLoading && workshops.length === 0 ? (
+                      <div className="px-4 py-3 bg-white/70 border border-dashed border-relish-linen text-relish-ink rounded-2xl">
+                        Loading workshops...
+                      </div>
+                    ) : workshops.length === 0 ? (
+                      <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-8 text-center text-relish-ink shadow-inner">
+                        <p className="text-sm">No workshops available yet.</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {workshops.map((workshop) => {
+                          const workshopId = workshop._id || workshop.id;
+                          const isActive = String(activeWorkshopId || '') === String(workshopId || '');
+                          const facilitatorName = workshop.facilitatorId?.name || 'Facilitator';
+                          return (
+                            <button
+                              key={workshopId}
+                              type="button"
+                              onClick={() => setActiveWorkshopId(isActive ? null : workshopId)}
+                              className={`bg-white/90 border rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left p-4 ${
+                                isActive ? 'border-relish-ink' : 'border-relish-linen'
+                              }`}
+                            >
+                              <p className="text-xs uppercase tracking-[0.3em] text-relish-smoke">Workshop</p>
+                              <div className="flex items-start justify-between gap-3 mt-2">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h5 className="text-lg font-display text-relish-ink">{workshop.name}</h5>
+                                    {workshop.archivedAt && (
+                                      <span className="px-2.5 py-1 rounded-full bg-relish-paper text-relish-ink text-[10px] uppercase tracking-[0.2em]">
+                                        Archived
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-relish-ink-muted">{facilitatorName}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteWorkshop(workshop);
+                                  }}
+                                  className="px-3 py-1 rounded-full border border-relish-accent text-relish-accent text-xs hover:bg-relish-accent hover:text-white"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {photosLoading && visiblePhotos.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-relish-ink border-2 border-dashed border-relish-linen rounded-2xl p-10">
                     <Images size={48} className="mb-4 animate-pulse" />
                     <p className="text-lg font-semibold">Loading photos...</p>
                     <p className="text-sm mt-2 text-relish-ink-muted">Fetching your workshop gallery from the server.</p>
                   </div>
-                ) : photos.length === 0 ? (
+                ) : visiblePhotos.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-relish-ink border-2 border-dashed border-relish-linen rounded-2xl p-10">
                     <Images size={48} className="mb-4" />
                     <p className="text-lg font-semibold">No photos yet</p>
                     <p className="text-sm mt-2 text-relish-ink-muted">Capture memory maps, cooking sessions, and group moments to build a visual archive.</p>
+                    {!isAdmin && (
+                      <button
+                        onClick={openPhotoUploader}
+                        className="mt-6 flex items-center gap-2 px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+                      >
+                        <Camera size={18} />
+                        Add your first photo
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {isAdmin && activeWorkshopId && (
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-xl font-display text-relish-ink">Workshop photos</h4>
+                          <button
+                            onClick={() => setActiveWorkshopId(null)}
+                            className="text-sm text-relish-ink-muted hover:text-relish-ink"
+                          >
+                            Clear selection
+                          </button>
+                        </div>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {workshopScopedPhotos.map((photo, index) => (
+                            <button
+                              key={getPhotoId(photo) || index}
+                              type="button"
+                              onClick={() => openPhotoPreview(index)}
+                              className="bg-white/90 border border-relish-linen rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
+                            >
+                              <div className="relative aspect-video overflow-hidden rounded-t-xl">
+                                <img
+                                  src={buildPhotoUrl(photo)}
+                                  alt={photo.caption || photo.originalName || 'Workshop photo'}
+                                  className="h-full w-full object-cover"
+                                />
+                                <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Maximize2 size={14} /> View
+                                </span>
+                              </div>
+                              <div className="p-4 space-y-1">
+                                <div className="font-semibold text-sm text-relish-ink truncate">{photo.caption || photo.originalName || 'Workshop photo'}</div>
+                                <div className="text-xs text-relish-ink-muted">{formatPhotoTimestamp(photo.createdAt)}</div>
+                                <div className="text-xs text-relish-ink-muted">{describePhotoContext(photo)}</div>
+                                {photo.uploadedBy && (
+                                  <div className="text-xs text-relish-ink">{getUploaderLabel(photo)}</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {isAdmin && !activeWorkshopId && adminUnassignedPhotos.length > 0 && (
+                      <div>
+                        <h4 className="text-xl font-display text-relish-ink mb-4">Other uploads</h4>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {adminUnassignedPhotos.map((photo, index) => (
+                            <button
+                              key={getPhotoId(photo) || index}
+                              type="button"
+                              onClick={() => openPhotoPreview(index)}
+                              className="bg-white/90 border border-relish-linen rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
+                            >
+                              <div className="relative aspect-video overflow-hidden rounded-t-xl">
+                                <img
+                                  src={buildPhotoUrl(photo)}
+                                  alt={photo.caption || photo.originalName || 'Workshop photo'}
+                                  className="h-full w-full object-cover"
+                                />
+                                <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Maximize2 size={14} /> View
+                                </span>
+                              </div>
+                              <div className="p-4 space-y-1">
+                                <div className="font-semibold text-sm text-relish-ink truncate">{photo.caption || photo.originalName || 'Workshop photo'}</div>
+                                <div className="text-xs text-relish-ink-muted">{formatPhotoTimestamp(photo.createdAt)}</div>
+                                <div className="text-xs text-relish-ink-muted">{describePhotoContext(photo)}</div>
+                                {photo.uploadedBy && (
+                                  <div className="text-xs text-relish-ink">{getUploaderLabel(photo)}</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!isAdmin && (
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {visiblePhotos.map((photo, index) => (
+                          <button
+                            key={getPhotoId(photo) || index}
+                            type="button"
+                            onClick={() => openPhotoPreview(index)}
+                            className="bg-white/90 border border-relish-linen rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
+                          >
+                            <div className="relative aspect-video overflow-hidden rounded-t-xl">
+                              <img
+                                src={buildPhotoUrl(photo)}
+                                alt={photo.caption || photo.originalName || 'Workshop photo'}
+                                className="h-full w-full object-cover"
+                              />
+                              <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                <Maximize2 size={14} /> View
+                              </span>
+                            </div>
+                            <div className="p-4 space-y-1">
+                              <div className="font-semibold text-sm text-relish-ink truncate">{photo.caption || photo.originalName || 'Workshop photo'}</div>
+                              <div className="text-xs text-relish-ink-muted">{formatPhotoTimestamp(photo.createdAt)}</div>
+                              <div className="text-xs text-relish-ink-muted">{describePhotoContext(photo)}</div>
+                              {photo.uploadedBy && (
+                                <div className="text-xs text-relish-ink">{getUploaderLabel(photo)}</div>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              onChange={handlePhotoUploadChange}
+              className="hidden"
+            />
+          </div>
+        </div>
+      )}
+
+      {showWorkshops && (isAdmin || isFacilitator) && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="relative bg-white/95 rounded-[32px] shadow-relish-card max-w-5xl w-full max-h-[85vh] flex flex-col border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen flex items-center justify-between bg-white/80 backdrop-blur">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-relish-smoke font-semibold">Workshop directory</p>
+                <h3 className="text-3xl font-display text-relish-ink">Workshops</h3>
+                <p className="text-sm text-relish-ink-muted">Browse workshops and open participant archives.</p>
+              </div>
+              <button
+                onClick={() => setShowWorkshops(false)}
+                className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                aria-label="Close workshops"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="relative p-6 space-y-4 overflow-y-auto">
+              {(isAdmin || isFacilitator) && (
+                <form onSubmit={handleCreateWorkshop} className="bg-white/85 border border-relish-linen rounded-[28px] p-5 space-y-4 shadow-inner">
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="workshop-name">
+                      Workshop name
+                    </label>
+                    <input
+                      id="workshop-name"
+                      name="name"
+                      value={workshopForm.name}
+                      onChange={handleWorkshopFormChange}
+                      placeholder="e.g. Coastal Memories"
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      required
+                    />
+                  </div>
+                  {isAdmin && (
+                    <div>
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="workshop-facilitator">
+                        Facilitator
+                      </label>
+                      <select
+                        id="workshop-facilitator"
+                        name="facilitatorId"
+                        value={workshopForm.facilitatorId}
+                        onChange={handleWorkshopFormChange}
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      >
+                        <option value="">Select facilitator</option>
+                        {facilitators.map((facilitator) => (
+                          <option key={facilitator._id || facilitator.id} value={facilitator._id || facilitator.id}>
+                            {facilitator.name || facilitator.email}
+                          </option>
+                        ))}
+                      </select>
+                      {facilitatorsLoading && (
+                        <p className="mt-2 text-xs text-relish-ink-muted">Loading facilitators...</p>
+                      )}
+                      {facilitatorsError && (
+                        <p className="mt-2 text-xs text-relish-accent">{facilitatorsError}</p>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+                  >
+                    Create workshop
+                  </button>
+                </form>
+              )}
+              {workshopsError && (
+                <div className="px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
+                  {workshopsError}
+                </div>
+              )}
+              {workshopsLoading && workshops.length === 0 && (
+                <div className="px-4 py-3 bg-white/70 border border-dashed border-relish-linen text-relish-ink rounded-2xl">
+                  Loading workshops...
+                </div>
+              )}
+              {workshops.length === 0 ? (
+                <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-10 text-center text-relish-ink shadow-inner">
+                  <p className="text-lg font-semibold">No workshops yet.</p>
+                  <p className="text-sm mt-2 text-relish-ink-muted">Workshops appear here once facilitators log in.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 grid-cols-2">
+                    {workshops.map((workshop) => {
+                    const workshopId = workshop._id || workshop.id;
+                    const facilitatorName = workshop.facilitatorId?.name || 'Facilitator';
+                    const participantTotal = getWorkshopParticipantCount(workshopId);
+                    const photoTotal = getWorkshopPhotoCount(workshopId);
+                      const isEditing = assigningWorkshopEditId === workshopId;
+                    return (
+                      <div
+                        key={workshopId}
+                        className="bg-white/90 border border-relish-linen rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left p-5"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs uppercase tracking-[0.3em] text-relish-smoke">Workshop</p>
+                              {isEditing ? (
+                                <input
+                                  value={workshopEditNameAdmin}
+                                  onChange={(event) => setWorkshopEditNameAdmin(event.target.value)}
+                                  className="mt-2 w-full px-3 py-2 border border-relish-linen rounded-2xl bg-white text-relish-ink focus:border-relish-ink focus:outline-none"
+                                />
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-2 mt-2">
+                                  <h4 className="text-2xl font-display text-relish-ink break-words">{workshop.name}</h4>
+                                  {workshop.archivedAt && (
+                                    <span className="px-2.5 py-1 rounded-full bg-relish-paper text-relish-ink text-xs uppercase tracking-[0.2em]">
+                                      Archived
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <p className="text-sm text-relish-ink-muted mt-1">
+                                {workshop.facilitatorId ? facilitatorName : 'Unassigned'}
+                              </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!isEditing && (
+                              <button
+                                onClick={() => beginWorkshopNameEdit(workshop)}
+                                className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                                title="Edit workshop name"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteWorkshop(workshop)}
+                              className="px-3 py-1 rounded-full border border-relish-accent text-relish-accent text-xs hover:bg-relish-accent hover:text-white"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                          {isEditing && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <button
+                                onClick={() => handleSaveWorkshopNameAdmin(workshop)}
+                                disabled={workshopSaving || !workshopEditNameAdmin.trim()}
+                                className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {workshopSaving ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                onClick={cancelWorkshopNameAdmin}
+                                className="px-3 py-1 rounded-full border border-relish-linen text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-paper"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                          {!workshop.facilitatorId && (
+                            <div className="mt-4 space-y-2">
+                              <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke">Assign facilitator</label>
+                              <select
+                                onChange={(event) => handleAssignWorkshopFacilitator(workshop, event.target.value)}
+                                defaultValue=""
+                                className="w-full px-4 py-2 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                              >
+                                <option value="">Select facilitator</option>
+                                {facilitators.map((facilitator) => (
+                                  <option key={facilitator._id || facilitator.id} value={facilitator._id || facilitator.id}>
+                                    {facilitator.name || facilitator.email}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        <button
+                          type="button"
+                          onClick={() => openWorkshopDetail(workshopId)}
+                          className="mt-4 w-full text-left"
+                        >
+                          <div className="flex flex-wrap gap-2 text-xs text-relish-ink">
+                            <span className="px-3 py-1 rounded-full border border-relish-linen bg-white/80">
+                              {participantTotal} participant{participantTotal === 1 ? '' : 's'}
+                            </span>
+                            <span className="px-3 py-1 rounded-full border border-relish-linen bg-white/80">
+                              {photoTotal} photo{photoTotal === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWorkshopDetail && activeWorkshop && isAdmin && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="relative bg-white/95 rounded-[32px] shadow-relish-card max-w-6xl w-full max-h-[90vh] flex flex-col border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen flex items-center justify-between bg-white/80 backdrop-blur">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-relish-smoke font-semibold">Workshop archive</p>
+                <h3 className="text-3xl font-display text-relish-ink">{activeWorkshop.name}</h3>
+                <p className="text-sm text-relish-ink-muted">
+                  {activeWorkshop.facilitatorId?.name || 'Facilitator'}
+                </p>
+              </div>
+              <button
+                onClick={closeWorkshopDetail}
+                className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                aria-label="Close workshop"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="relative p-6 space-y-8 overflow-y-auto">
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-2xl font-display text-relish-ink">Participants</h4>
+                    <p className="text-sm text-relish-ink-muted">Add or manage participants linked to this workshop.</p>
+                  </div>
+                  <div className="text-sm text-relish-ink font-semibold">
+                    {visibleParticipants.length} linked
+                  </div>
+                </div>
+                {participantsError && (
+                  <div className="px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
+                    {participantsError}
+                  </div>
+                )}
+                <form onSubmit={handleParticipantSubmit} className="bg-white/85 border border-relish-linen rounded-[28px] p-6 space-y-4 shadow-inner">
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex-1 min-w-[220px]">
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-name-workshop">
+                        Name <span className="text-relish-accent">*</span>
+                      </label>
+                      <input
+                        id="participant-name-workshop"
+                        name="name"
+                        value={participantForm.name}
+                        onChange={handleParticipantChange}
+                        required
+                        placeholder="Participant full name"
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[220px]">
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-email-workshop">
+                        Email
+                      </label>
+                      <input
+                        id="participant-email-workshop"
+                        name="email"
+                        type="email"
+                        value={participantForm.email}
+                        onChange={handleParticipantChange}
+                        disabled={Boolean(editingParticipantId && editingParticipantUserId)}
+                        placeholder="example@email.com"
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                      {editingParticipantId && editingParticipantUserId && (
+                        <p className="mt-2 text-xs text-relish-ink-muted">Email is locked to the participant account.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex-1 min-w-[220px]">
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-dietary-workshop">
+                        Dietary needs
+                      </label>
+                      <input
+                        id="participant-dietary-workshop"
+                        name="dietary"
+                        value={participantForm.dietary}
+                        onChange={handleParticipantChange}
+                        placeholder="Vegetarian, allergies, etc."
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[220px]">
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-cultural-workshop">
+                        Cultural background
+                      </label>
+                      <input
+                        id="participant-cultural-workshop"
+                        name="cultural"
+                        value={participantForm.cultural}
+                        onChange={handleParticipantChange}
+                        placeholder="Region, heritage, influences"
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-notes-workshop">
+                      Notes
+                    </label>
+                    <textarea
+                      id="participant-notes-workshop"
+                      name="notes"
+                      value={participantForm.notes}
+                      onChange={handleParticipantChange}
+                      placeholder="Observations, accessibility needs, preferred pronouns, etc."
+                      rows={3}
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none resize-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
                     <button
-                      onClick={openPhotoUploader}
-                      className="mt-6 flex items-center gap-2 px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+                      type="submit"
+                      className="flex items-center gap-2 px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors"
                     >
-                      <Camera size={18} />
-                      Add your first photo
+                      {editingParticipantId ? 'Update Participant' : 'Add Participant'}
                     </button>
+                    {editingParticipantId && (
+                      <button
+                        type="button"
+                        onClick={resetParticipantForm}
+                        className="px-5 py-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+                {unassignedParticipants.length > 0 && (
+                  <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-6">
+                    <p className="text-sm font-semibold text-relish-ink mb-3">Unassigned participants</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {unassignedParticipants.map((participant, index) => (
+                        <div
+                          key={participant._id || participant.id || `${participant.name}-${index}`}
+                          className="bg-white/90 border border-relish-linen rounded-2xl p-4 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h5 className="text-lg font-display text-relish-ink">{participant.name}</h5>
+                              {participant.email && (
+                                <p className="text-xs text-relish-ink-muted">{participant.email}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleAssignParticipant(participant)}
+                              className="px-3 py-1 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors text-xs"
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {visibleParticipants.length === 0 ? (
+                  <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-10 text-center text-relish-ink shadow-inner">
+                    <p className="text-lg font-semibold">No participants linked yet.</p>
+                    <p className="text-sm mt-2 text-relish-ink-muted">Add participants above to build this workshop roster.</p>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {visibleParticipants.map((participant, index) => (
+                      <div
+                        key={participant._id || participant.id || `${participant.name}-${index}`}
+                        className="bg-white/90 border border-relish-linen rounded-2xl p-5 shadow-sm backdrop-blur"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="text-xl font-display text-relish-ink">{participant.name}</h4>
+                            {participant.email && (
+                              <p className="text-sm text-relish-ink-muted">{participant.email}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditParticipant(participant)}
+                              className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                              title="Edit participant"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteParticipant(participant)}
+                              className="p-2 rounded-full border border-relish-accent text-relish-accent hover:bg-relish-accent hover:text-white"
+                              title="Remove participant"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        {participant.dietary && (
+                          <div className="mb-2 text-sm">
+                            <span className="font-semibold text-relish-ink">Dietary:</span>{' '}
+                            <span className="text-relish-ink-muted">{participant.dietary}</span>
+                          </div>
+                        )}
+                        {participant.cultural && (
+                          <div className="mb-2 text-sm">
+                            <span className="font-semibold text-relish-ink">Cultural Background:</span>{' '}
+                            <span className="text-relish-ink-muted">{participant.cultural}</span>
+                          </div>
+                        )}
+                        {participant.notes && (
+                          <div className="text-sm text-relish-ink-muted bg-relish-paper rounded-2xl p-3">
+                            {participant.notes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-2xl font-display text-relish-ink">Photos</h4>
+                    <p className="text-sm text-relish-ink-muted">Uploads tied to this workshop.</p>
+                  </div>
+                  <div className="text-sm text-relish-ink font-semibold">
+                    {visiblePhotos.length} stored
+                  </div>
+                </div>
+                {photosLoading && visiblePhotos.length === 0 ? (
+                  <div className="h-40 flex flex-col items-center justify-center text-center text-relish-ink border-2 border-dashed border-relish-linen rounded-2xl p-6">
+                    <Images size={32} className="mb-3 animate-pulse" />
+                    <p className="text-sm">Loading photos...</p>
+                  </div>
+                ) : visiblePhotos.length === 0 ? (
+                  <div className="h-40 flex flex-col items-center justify-center text-center text-relish-ink border-2 border-dashed border-relish-linen rounded-2xl p-6">
+                    <Images size={32} className="mb-3" />
+                    <p className="text-sm">No photos yet.</p>
                   </div>
                 ) : (
                   <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {photos.map((photo, index) => (
+                    {visiblePhotos.map((photo, index) => (
                       <button
                         key={getPhotoId(photo) || index}
                         type="button"
@@ -1693,22 +3956,76 @@ const WorkshopTool = () => {
                           <div className="font-semibold text-sm text-relish-ink truncate">{photo.caption || photo.originalName || 'Workshop photo'}</div>
                           <div className="text-xs text-relish-ink-muted">{formatPhotoTimestamp(photo.createdAt)}</div>
                           <div className="text-xs text-relish-ink-muted">{describePhotoContext(photo)}</div>
+                          {photo.uploadedBy && (
+                            <div className="text-xs text-relish-ink">{getUploaderLabel(photo)}</div>
+                          )}
                         </div>
                       </button>
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             </div>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              onChange={handlePhotoUploadChange}
-              className="hidden"
-            />
+          </div>
+        </div>
+      )}
+
+      {showWorkshopDeleteConfirm && pendingWorkshopDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]">
+          <div className="relative bg-white/95 rounded-[28px] shadow-relish-card max-w-md w-full border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen bg-white/90">
+              <h4 className="text-xl font-display text-relish-ink">Delete this workshop?</h4>
+              <p className="text-sm text-relish-ink-muted mt-2">This will remove the workshop and all associated photos.</p>
+            </div>
+            <div className="relative p-6 flex items-center justify-end gap-3 bg-white/90">
+              <button
+                onClick={cancelWorkshopDelete}
+                className="px-5 py-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmWorkshopDelete}
+                className="px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+              >
+                Delete workshop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFacilitatorWorkshopDeleteConfirm && activeWorkshop && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]">
+          <div className="relative bg-white/95 rounded-[28px] shadow-relish-card max-w-md w-full border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen bg-white/90">
+              <h4 className="text-xl font-display text-relish-ink">Archive this workshop?</h4>
+              <p className="text-sm text-relish-ink-muted mt-2">
+                Participants will be unassigned and the workshop will move to the admin archive. Photos remain with the workshop.
+              </p>
+            </div>
+            <div className="relative p-6 flex items-center justify-end gap-3 bg-white/90">
+              <button
+                onClick={cancelDeleteOwnWorkshop}
+                className="px-5 py-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteOwnWorkshop}
+                className="px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+              >
+                Archive workshop
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1782,29 +4099,137 @@ const WorkshopTool = () => {
       )}
 
       {/* Participants Modal */}
-      {showParticipants && (
+      {showParticipants && (isFacilitator || isAdmin) && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="relative bg-white/95 rounded-[32px] shadow-relish-card max-w-5xl w-full max-h-[85vh] flex flex-col border border-relish-linen overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
               <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
             </div>
-            <div className="relative flex flex-col flex-1">
+            <div className="relative flex flex-col flex-1 min-h-0">
               <div className="p-6 border-b border-relish-linen flex items-center justify-between bg-white/80 backdrop-blur">
                 <div>
                   <p className="text-xs uppercase tracking-[0.35em] text-relish-smoke font-semibold">Participant registry</p>
                   <h3 className="text-3xl font-display text-relish-ink">Roster & care notes</h3>
                   <p className="text-sm text-relish-ink-muted">Track attendees, sensitivities, and cultural frames in one scholarly sheet.</p>
                 </div>
-                <button
-                  onClick={handleCloseParticipants}
-                  className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
-                  aria-label="Close participant modal"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-3">
+                  {isFacilitator && (
+                    <button
+                      onClick={openWorkshopCreator}
+                      className="flex items-center gap-2 px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors"
+                    >
+                      <Plus size={18} />
+                      Create Workshop
+                    </button>
+                  )}
+                  <button
+                    onClick={handleCloseParticipants}
+                    className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                    aria-label="Close participant modal"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
-              <div className="p-6 space-y-6 overflow-y-auto">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
+                {isFacilitator && (
+                  <div className="bg-white/85 border border-relish-linen rounded-[24px] p-4 shadow-inner space-y-4">
+                    <div>
+                      <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="facilitator-workshop-select">
+                        Active workshop
+                      </label>
+                      <select
+                        id="facilitator-workshop-select"
+                        value={activeWorkshopId || ''}
+                        onChange={(event) => setActiveWorkshopId(event.target.value)}
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                      >
+                        <option value="">Select workshop</option>
+                        {workshops.map((workshop) => (
+                          <option key={workshop._id || workshop.id} value={workshop._id || workshop.id}>
+                            {workshop.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {activeWorkshop && (
+                      <div className="bg-white/90 border border-relish-linen rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.3em] text-relish-smoke">Active workshop</p>
+                            {isEditingWorkshopName ? (
+                              <input
+                                id="facilitator-workshop-name"
+                                value={workshopEditName}
+                                onChange={(event) => setWorkshopEditName(event.target.value)}
+                                className="mt-2 w-full px-3 py-2 border border-relish-linen rounded-2xl bg-white text-relish-ink focus:border-relish-ink focus:outline-none"
+                              />
+                            ) : (
+                              <h5 className="text-xl font-display text-relish-ink mt-2">{activeWorkshop.name}</h5>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {isEditingWorkshopName ? (
+                              <button
+                                onClick={handleUpdateWorkshopName}
+                                disabled={workshopSaving || !workshopEditName.trim()}
+                                className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {workshopSaving ? 'Saving…' : 'Save'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setIsEditingWorkshopName(true)}
+                                className="p-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+                                title="Edit workshop name"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            )}
+                            {isEditingWorkshopName && (
+                              <button
+                                onClick={() => setIsEditingWorkshopName(false)}
+                                className="px-3 py-1 rounded-full border border-relish-linen text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-paper"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            {!isEditingWorkshopName && (
+                              <button
+                                onClick={requestDeleteOwnWorkshop}
+                                className="p-2 rounded-full border border-relish-accent text-relish-accent hover:bg-relish-accent hover:text-white"
+                                title="Delete workshop"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isAdmin && (
+                  <div className="bg-white/85 border border-relish-linen rounded-[24px] p-4 shadow-inner">
+                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="participant-assign-workshop">
+                      Assign to workshop
+                    </label>
+                    <select
+                      id="participant-assign-workshop"
+                      value={selectedWorkshopId}
+                      onChange={(event) => setSelectedWorkshopId(event.target.value)}
+                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                    >
+                      <option value="">Select workshop</option>
+                      {workshops.map((workshop) => (
+                        <option key={workshop._id || workshop.id} value={workshop._id || workshop.id}>
+                          {workshop.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {participantsError && (
                   <div className="px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
                     {participantsError}
@@ -1841,9 +4266,13 @@ const WorkshopTool = () => {
                         type="email"
                         value={participantForm.email}
                         onChange={handleParticipantChange}
+                        disabled={Boolean(editingParticipantId && editingParticipantUserId)}
                         placeholder="example@email.com"
-                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
+                        className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       />
+                      {editingParticipantId && editingParticipantUserId && (
+                        <p className="mt-2 text-xs text-relish-ink-muted">Email is locked to the participant account.</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-4">
@@ -1907,6 +4336,73 @@ const WorkshopTool = () => {
                   </div>
                 </form>
 
+                {isAdmin && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-2xl font-display text-relish-ink">Facilitators</h4>
+                        <p className="text-sm text-relish-ink-muted">Active facilitators and their workshops.</p>
+                      </div>
+                      <div className="text-sm text-relish-ink font-semibold">
+                        {facilitators.length} facilitator{facilitators.length === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    {facilitatorsError && (
+                      <div className="px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
+                        {facilitatorsError}
+                      </div>
+                    )}
+                    {facilitatorsLoading && facilitators.length === 0 ? (
+                      <div className="px-4 py-3 bg-white/70 border border-dashed border-relish-linen text-relish-ink rounded-2xl">
+                        Loading facilitators...
+                      </div>
+                    ) : facilitators.length === 0 ? (
+                      <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-8 text-center text-relish-ink shadow-inner">
+                        <p className="text-sm">No facilitators yet.</p>
+                      </div>
+                    ) : (
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {facilitators.map((facilitator) => {
+                          const facilitatorId = facilitator._id || facilitator.id;
+                          const assignedWorkshops = workshops.filter(
+                            (workshop) => String(workshop.facilitatorId?._id || workshop.facilitatorId || '') === String(facilitatorId)
+                          );
+                          return (
+                            <div
+                              key={facilitatorId}
+                              className="bg-white/90 border border-relish-linen rounded-2xl p-5 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <h5 className="text-lg font-display text-relish-ink">{facilitator.name || 'Facilitator'}</h5>
+                                  {facilitator.email && (
+                                    <p className="text-sm text-relish-ink-muted">{facilitator.email}</p>
+                                  )}
+                                  <p className="text-xs text-relish-ink-muted mt-2">
+                                    {assignedWorkshops.length} workshop{assignedWorkshops.length === 1 ? '' : 's'}
+                                  </p>
+                                </div>
+                              </div>
+                              {assignedWorkshops.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {assignedWorkshops.map((workshop) => (
+                                    <span
+                                      key={workshop._id || workshop.id}
+                                      className="px-3 py-1 rounded-full bg-relish-paper text-relish-ink text-xs uppercase tracking-[0.2em]"
+                                    >
+                                      {workshop.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-sm text-relish-ink font-semibold">
                     {participantCount} participant{participantCount === 1 ? '' : 's'} registered
@@ -1936,14 +4432,14 @@ const WorkshopTool = () => {
                   </div>
                 </div>
 
-                {participantCount === 0 ? (
+                {(isFacilitator ? visibleParticipantsForFacilitator : participants).length === 0 ? (
                   <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-10 text-center text-relish-ink shadow-inner">
                     <p className="text-lg font-semibold">No participants registered yet.</p>
                     <p className="text-sm mt-2 text-relish-ink-muted">Use the form above to add facilitators and attendees as you prepare for the workshop.</p>
                   </div>
                 ) : (
                   <div className="grid md:grid-cols-2 gap-4">
-                    {participants.map((participant, index) => (
+                    {(isFacilitator ? visibleParticipantsForFacilitator : participants).map((participant, index) => (
                       <div
                         key={participant._id || participant.id || `${participant.name}-${index}`}
                         className="bg-white/90 border border-relish-linen rounded-2xl p-5 shadow-sm backdrop-blur"
@@ -1954,6 +4450,12 @@ const WorkshopTool = () => {
                             {participant.email && (
                               <p className="text-sm text-relish-ink-muted">{participant.email}</p>
                             )}
+                            <p className="text-xs text-relish-ink-muted mt-1">
+                              Workshop:{' '}
+                              {participant.workshopId
+                                ? getWorkshopLabel(participant.workshopId)
+                                : 'Unassigned'}
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -1963,6 +4465,71 @@ const WorkshopTool = () => {
                             >
                               <Pencil size={16} />
                             </button>
+                            {(isFacilitator || isAdmin) && (
+                              participant.workshopId ? (
+                                (isAdmin || String(participant.workshopId) === String(activeWorkshopId)) && (
+                                  <button
+                                    onClick={() => handleSetParticipantWorkshop(participant, null)}
+                                    className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white"
+                                    title="Unassign participant"
+                                  >
+                                    Unassign
+                                  </button>
+                                )
+                              ) : (
+                                <>
+                                  {isAdmin && assigningParticipantId === (participant._id || participant.id) ? (
+                                    <div className="flex flex-col gap-2 items-end">
+                                      <select
+                                        value={selectedWorkshopId}
+                                        onChange={(event) => setSelectedWorkshopId(event.target.value)}
+                                        className="px-3 py-1 rounded-full border border-relish-linen bg-white text-relish-ink text-xs"
+                                      >
+                                        <option value="">Select workshop</option>
+                                        {workshops.map((workshop) => (
+                                          <option key={workshop._id || workshop.id} value={workshop._id || workshop.id}>
+                                            {workshop.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => confirmAssignParticipant(participant)}
+                                          disabled={!selectedWorkshopId}
+                                          className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          Assign
+                                        </button>
+                                        <button
+                                          onClick={cancelAssignParticipant}
+                                          className="px-3 py-1 rounded-full border border-relish-linen text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-paper"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        if (isAdmin) {
+                                          beginAssignParticipant(participant);
+                                        } else {
+                                          handleSetParticipantWorkshop(participant, activeWorkshopId);
+                                        }
+                                      }}
+                                      disabled={!isAdmin && !activeWorkshopId}
+                                      className={isFacilitator
+                                        ? "px-3 py-1 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors text-xs uppercase tracking-[0.2em] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        : "px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                      }
+                                      title="Assign participant"
+                                    >
+                                      Assign
+                                    </button>
+                                  )}
+                                </>
+                              )
+                            )}
                             <button
                               onClick={() => handleDeleteParticipant(participant)}
                               className="p-2 rounded-full border border-relish-accent text-relish-accent hover:bg-relish-accent hover:text-white"
@@ -1993,6 +4560,106 @@ const WorkshopTool = () => {
                     ))}
                   </div>
                 )}
+
+                {(isAdmin || isFacilitator) && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-2xl font-display text-relish-ink">Participant Accounts</h4>
+                        <p className="text-sm text-relish-ink-muted">Accounts created via sign up.</p>
+                      </div>
+                      <div className="text-sm text-relish-ink font-semibold">
+                        {participantAccounts.length} account{participantAccounts.length === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    {participantAccountsError && (
+                      <div className="px-4 py-3 bg-relish-paper border border-relish-accent text-relish-ink rounded-2xl">
+                        {participantAccountsError}
+                      </div>
+                    )}
+                    {participantAccountsLoading && participantAccounts.length === 0 ? (
+                      <div className="px-4 py-3 bg-white/70 border border-dashed border-relish-linen text-relish-ink rounded-2xl">
+                        Loading participant accounts...
+                      </div>
+                    ) : participantAccounts.length === 0 ? (
+                      <div className="bg-white/80 border border-dashed border-relish-linen rounded-2xl p-8 text-center text-relish-ink shadow-inner">
+                        <p className="text-sm">No participant accounts yet.</p>
+                      </div>
+                    ) : (
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {participantAccounts.map((account) => (
+                          <div
+                            key={account._id || account.id}
+                            className="bg-white/90 border border-relish-linen rounded-2xl p-5 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h5 className="text-lg font-display text-relish-ink">{account.name || 'Participant'}</h5>
+                                {account.email && (
+                                  <p className="text-sm text-relish-ink-muted">{account.email}</p>
+                                )}
+                                <p className="text-xs text-relish-ink-muted mt-2">
+                                  Created {formatPhotoTimestamp(account.createdAt)}
+                                </p>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                {isAdmin && assigningAccountId === (account._id || account.id) ? (
+                                  <div className="flex flex-col gap-2 items-end">
+                                    <select
+                                      value={selectedWorkshopId}
+                                      onChange={(event) => setSelectedWorkshopId(event.target.value)}
+                                      className="px-3 py-1 rounded-full border border-relish-linen bg-white text-relish-ink text-xs"
+                                    >
+                                      <option value="">Select workshop</option>
+                                      {workshops.map((workshop) => (
+                                        <option key={workshop._id || workshop.id} value={workshop._id || workshop.id}>
+                                          {workshop.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => confirmAssignAccount(account)}
+                                        disabled={!selectedWorkshopId}
+                                        className="px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Assign
+                                      </button>
+                                      <button
+                                        onClick={cancelAssignAccount}
+                                        className="px-3 py-1 rounded-full border border-relish-linen text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-paper"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (isAdmin) {
+                                        beginAssignAccount(account);
+                                      } else {
+                                        confirmAssignAccount(account);
+                                      }
+                                    }}
+                                    disabled={!isAdmin && !activeWorkshopId}
+                                    className={isAdmin
+                                      ? "px-3 py-1 rounded-full border border-relish-ink text-relish-ink text-xs uppercase tracking-[0.2em] hover:bg-relish-ink hover:text-white"
+                                      : "px-3 py-1 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark transition-colors text-xs uppercase tracking-[0.2em] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    }
+                                    title="Assign participant"
+                                  >
+                                    Assign
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2000,8 +4667,8 @@ const WorkshopTool = () => {
       )}
 
       {/* Photo Preview Overlay */}
-      {activePhotoIndex !== null && photos[activePhotoIndex] && (
-        <div className="fixed inset-0 bg-black/80 flex flex-col md:flex-row items-center justify-center gap-6 p-6 z-50">
+      {activePhotoIndex !== null && visiblePhotos[activePhotoIndex] && (
+        <div className="fixed inset-0 bg-black/60 flex flex-col md:flex-row items-center justify-center gap-6 p-6 z-50">
           <button
             onClick={() => showNextPhoto(-1)}
             className="hidden md:flex items-center justify-center h-12 w-12 rounded-full bg-white/20 text-white hover:bg-white/30"
@@ -2009,15 +4676,19 @@ const WorkshopTool = () => {
           >
             <ChevronLeft size={24} />
           </button>
-          <div className="bg-white/98 rounded-[28px] shadow-relish-card max-w-3xl w-full overflow-hidden border border-relish-linen">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-relish-linen bg-white/80">
+          <div className="relative bg-white/98 rounded-[28px] shadow-relish-card max-w-3xl w-full overflow-hidden border border-relish-linen">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative flex items-center justify-between px-4 py-3 border-b border-relish-linen bg-white/90">
               <div>
                 <h4 className="font-display text-xl text-relish-ink">Photo details</h4>
-                <p className="text-xs text-relish-ink-muted">{describePhotoContext(photos[activePhotoIndex])}</p>
+                <p className="text-xs text-relish-ink-muted">{describePhotoContext(visiblePhotos[activePhotoIndex])}</p>
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => removePhoto(getPhotoId(photos[activePhotoIndex]))}
+                  onClick={() => requestPhotoDelete(getPhotoId(visiblePhotos[activePhotoIndex]))}
                   className="flex items-center gap-2 px-3 py-2 rounded-full border border-relish-accent text-relish-accent hover:bg-relish-accent hover:text-white text-sm"
                 >
                   <Trash2 size={16} /> Delete
@@ -2031,23 +4702,28 @@ const WorkshopTool = () => {
                 </button>
               </div>
             </div>
-            <div className="bg-black">
+            <div className="relative bg-black">
               <img
-                src={buildPhotoUrl(photos[activePhotoIndex])}
-                alt={photos[activePhotoIndex].caption || photos[activePhotoIndex].originalName || 'Workshop photo'}
+                src={buildPhotoUrl(visiblePhotos[activePhotoIndex])}
+                alt={visiblePhotos[activePhotoIndex].caption || visiblePhotos[activePhotoIndex].originalName || 'Workshop photo'}
                 className="max-h-[60vh] w-full object-contain bg-black"
               />
             </div>
-            <div className="px-4 py-4 space-y-3">
+            <div className="relative px-4 py-4 space-y-3 bg-white/90 border-t border-relish-linen">
               <div className="text-xs text-relish-ink-muted">
-                Captured {formatPhotoTimestamp(photos[activePhotoIndex].createdAt)}
+                Captured {formatPhotoTimestamp(visiblePhotos[activePhotoIndex].createdAt)}
               </div>
+              {visiblePhotos[activePhotoIndex].uploadedBy && (
+                <div className="text-xs text-relish-ink">
+                  {getUploaderLabel(visiblePhotos[activePhotoIndex])}
+                </div>
+              )}
               <label className="block text-sm font-semibold text-relish-ink">
                 Caption
                 <input
                   type="text"
-                  value={photos[activePhotoIndex].caption || ''}
-                  onChange={(event) => updatePhotoCaption(getPhotoId(photos[activePhotoIndex]), event.target.value)}
+                  value={visiblePhotos[activePhotoIndex].caption || ''}
+                  onChange={(event) => updatePhotoCaption(getPhotoId(visiblePhotos[activePhotoIndex]), event.target.value)}
                   placeholder="Add a short description"
                   className="mt-1 w-full px-3 py-2 border border-relish-linen rounded-2xl focus:border-relish-accent focus:outline-none"
                 />
@@ -2074,6 +4750,35 @@ const WorkshopTool = () => {
             >
               Next <ChevronRight size={18} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {showPhotoDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]">
+          <div className="relative bg-white/95 rounded-[28px] shadow-relish-card max-w-md w-full border border-relish-linen overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-50 mix-blend-multiply">
+              <img src={relishLineArt} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-transparent to-relish-paper" />
+            </div>
+            <div className="relative p-6 border-b border-relish-linen bg-white/90">
+              <h4 className="text-xl font-display text-relish-ink">Delete this photo?</h4>
+              <p className="text-sm text-relish-ink-muted mt-2">This action cannot be undone.</p>
+            </div>
+            <div className="relative p-6 flex items-center justify-end gap-3 bg-white/90">
+              <button
+                onClick={cancelPhotoDelete}
+                className="px-5 py-2 rounded-full border border-relish-linen text-relish-ink hover:bg-relish-paper"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPhotoDelete}
+                className="px-5 py-2 rounded-full bg-relish-accent text-white shadow-sm hover:bg-relish-accent-dark"
+              >
+                Delete photo
+              </button>
+            </div>
           </div>
         </div>
       )}

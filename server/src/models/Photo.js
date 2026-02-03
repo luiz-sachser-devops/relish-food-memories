@@ -43,6 +43,10 @@ const photoSchema = new Schema(
         ref: 'Participant'
       }
     ],
+    uploadedBy: {
+      type: Types.ObjectId,
+      ref: 'User'
+    },
     caption: {
       type: String,
       trim: true
@@ -50,11 +54,23 @@ const photoSchema = new Schema(
     notes: {
       type: String,
       trim: true
+    },
+    workshopId: {
+      type: Types.ObjectId,
+      ref: 'Workshop'
     }
   },
   {
     timestamps: true
   }
 );
+
+photoSchema.virtual('fileUrl').get(function fileUrl() {
+  if (!this.id) return null;
+  return `/api/photos/${this.id}/file`;
+});
+
+photoSchema.set('toJSON', { virtuals: true });
+photoSchema.set('toObject', { virtuals: true });
 
 module.exports = model('Photo', photoSchema);
