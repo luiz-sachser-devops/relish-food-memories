@@ -982,7 +982,17 @@ const WorkshopTool = () => {
 
   const openCameraViaInput = () => {
     setPhotosError(null);
-    cameraInputRef.current?.click();
+    // Detect iPad/iOS: these devices need capture="environment" to open the camera
+    // Desktop: use getUserMedia for a real camera experience
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      // iPad: use file input with capture attribute to open native camera
+      cameraInputRef.current?.click();
+    } else {
+      // Desktop/Android: use getUserMedia for live camera preview
+      openCameraCapture();
+    }
   };
 
   const handleCameraCaptureInputChange = (event) => {
