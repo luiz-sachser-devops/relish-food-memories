@@ -1,0 +1,14 @@
+node_modules
+build
+.git
+Dockerfile
+#nginx.conf
+server/node_modules
+server/.env
+.env
+.vscode
+foodmemories.pem
+workshop-code.zip
+backup/
+.DS_Store
+
