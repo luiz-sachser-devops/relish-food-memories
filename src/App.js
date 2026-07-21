@@ -132,6 +132,7 @@ const WorkshopTool = () => {
   const [editingParticipantId, setEditingParticipantId] = useState(null);
   const [editingParticipantUserId, setEditingParticipantUserId] = useState(null);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const [photos, setPhotos] = useState([]);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState(null);
@@ -977,6 +978,15 @@ const WorkshopTool = () => {
   const openPhotoUploader = () => {
     setPhotosError(null);
     photoInputRef.current?.click();
+  };
+
+  const openCameraViaInput = () => {
+    setPhotosError(null);
+    cameraInputRef.current?.click();
+  };
+
+  const handleCameraCaptureInputChange = (event) => {
+    handlePhotoUploadChange(event);
   };
 
   const openPhotoPreview = (index) => {
@@ -3237,7 +3247,7 @@ const WorkshopTool = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={openCameraCapture}
+                  onClick={openCameraViaInput}
                   disabled={photoUploading}
                   className="flex items-center gap-2 px-4 py-2 rounded-full bg-relish-accent text-white hover:bg-relish-accent-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -3476,13 +3486,22 @@ const WorkshopTool = () => {
                 )}
               </div>
             </div>
+            {/* Upload from file picker (no capture - shows file browser on iPad) */}
             <input
               ref={photoInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               multiple
               onChange={handlePhotoUploadChange}
+              className="hidden"
+            />
+            {/* Camera capture input (capture attribute forces camera on iPad) */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleCameraCaptureInputChange}
               className="hidden"
             />
           </div>
