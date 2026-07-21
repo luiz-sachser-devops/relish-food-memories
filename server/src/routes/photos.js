@@ -1,10 +1,11 @@
 const express = require('express');
+const fs = require('fs');
+const fsp = require('fs/promises');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const Photo = require('../models/Photo');
 const Participant = require('../models/Participant');
-const { resolveStoragePath, getUploadRoot } = require('../utils/storage');
+const { getAbsoluteUploadPath, resolveStoragePath } = require('../utils/storage');
 const { authenticate } = require('../middleware/auth');
 const Workshop = require('../models/Workshop');
 
@@ -12,36 +13,7 @@ const router = express.Router();
 
 const FILE_SIZE_LIMIT = Number(process.env.MAX_UPLOAD_SIZE_BYTES) || 10 * 1024 * 1024;
 
-const storage = multer.diskStorage({
-  destination: (req, file, done) => {
-    try {
-      const { day, phaseIndex, moduleId } = req.body;
-      if (!day || typeof day === 'undefined') {
-        return done(new Error('Missing "day" field in request body'));
-      }
-      if (typeof phaseIndex === 'undefined') {
-        return done(new Error('Missing "phaseIndex" field in request body'));
-      }
-
-      const { absoluteDir, relativeDir } = resolveStoragePath({
-        day,
-        phaseIndex,
-        moduleId
-      });
-
-      req.storageContext = { relativeDir };
-      done(null, absoluteDir);
-    } catch (error) {
-      done(error);
-    }
-  },
-  filename: (req, file, done) => {
-    const timestamp = Date.now();
-    const safeName = file.originalname.replace(/\s+/g, '-');
-    const ext = path.extname(safeName) || '.jpg';
-    done(null, `${timestamp}-${safeName}${ext ? '' : '.jpg'}`);
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, done) => {
   if (!file.mimetype.startsWith('image/')) {
@@ -57,6 +29,18 @@ const upload = multer({
     fileSize: FILE_SIZE_LIMIT
   }
 });
+
+const buildPhotoFilePath = (storagePath) => getAbsoluteUploadPath(storagePath);
+
+const removeFileIfExists = async (filePath) => {
+  try {
+    await fsp.unlink(filePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+};
 
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -144,7 +128,22 @@ router.post('/', authenticate, upload.single('photo'), async (req, res, next) =>
       participants = foundParticipants.map((participant) => participant.id);
     }
 
-    const storagePath = path.join(getUploadRoot(), req.storageContext.relativeDir, req.file.filename);
+    if (!day || typeof day === 'undefined') {
+      return res.status(400).json({ message: 'Missing "day" field in request body' });
+    }
+    if (typeof phaseIndex === 'undefined') {
+      return res.status(400).json({ message: 'Missing "phaseIndex" field in request body' });
+    }
+
+    const { relativeDir, absoluteDir } = resolveStoragePath({ day, phaseIndex, moduleId });
+    const timestamp = Date.now();
+    const safeName = req.file.originalname.replace(/\s+/g, '-');
+    const ext = path.extname(safeName) || '.jpg';
+    const filename = `${timestamp}-${safeName}${ext ? '' : '.jpg'}`;
+    const storagePath = `${relativeDir}/${filename}`;
+    const absoluteFilePath = path.join(absoluteDir, filename);
+
+    await fsp.writeFile(absoluteFilePath, req.file.buffer);
 
     let workshopId = null;
     if (req.user?.role === 'facilitator') {
@@ -162,7 +161,7 @@ router.post('/', authenticate, upload.single('photo'), async (req, res, next) =>
     }
 
     const photo = await Photo.create({
-      filename: req.file.filename,
+      filename,
       originalName: req.file.originalname,
       storagePath,
       mimeType: req.file.mimetype,
@@ -215,12 +214,17 @@ router.get('/:id/file', authenticate, async (req, res, next) => {
       }
     }
 
-    const absolutePath = path.join(process.cwd(), photo.storagePath);
-    return res.sendFile(absolutePath, (error) => {
-      if (error) {
-        next(error);
+    res.setHeader('Content-Type', photo.mimeType || 'application/octet-stream');
+    const filePath = buildPhotoFilePath(photo.storagePath);
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', (error) => {
+      if (error.code === 'ENOENT') {
+        res.status(404).json({ message: 'Photo not found' });
+        return;
       }
+      next(error);
     });
+    return stream.pipe(res);
   } catch (error) {
     next(error);
   }
@@ -249,15 +253,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     }
 
     await photo.deleteOne();
-
-    const absolutePath = path.join(process.cwd(), photo.storagePath);
-    fs.promises
-      .unlink(absolutePath)
-      .catch((error) => {
-        if (error.code !== 'ENOENT') {
-          console.warn(`Failed to remove photo file at ${absolutePath}:`, error.message);
-        }
-      });
+    await removeFileIfExists(buildPhotoFilePath(photo.storagePath));
 
     res.status(204).send();
   } catch (error) {

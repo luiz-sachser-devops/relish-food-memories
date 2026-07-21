@@ -17,6 +17,9 @@ const photoRoutes = require('./routes/photos');
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
+// Enable Proxy Trust for Cloud Run / Load Balancers
+app.set('trust proxy', 1);
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',

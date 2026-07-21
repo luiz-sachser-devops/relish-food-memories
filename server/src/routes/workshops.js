@@ -1,12 +1,22 @@
 const express = require('express');
+const fs = require('fs/promises');
 const Workshop = require('../models/Workshop');
 const Participant = require('../models/Participant');
 const { authenticate, authorize } = require('../middleware/auth');
 const Photo = require('../models/Photo');
-const path = require('path');
-const fs = require('fs');
+const { getAbsoluteUploadPath } = require('../utils/storage');
 
 const router = express.Router();
+
+const removeFileIfExists = async (filePath) => {
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+};
 
 router.get('/', authenticate, authorize('facilitator', 'admin'), async (req, res, next) => {
   try {
@@ -104,14 +114,7 @@ router.delete('/:id', authenticate, authorize('admin', 'facilitator'), async (re
     await workshop.deleteOne();
 
     await Promise.all(
-      photos.map((photo) => {
-        const absolutePath = path.join(process.cwd(), photo.storagePath);
-        return fs.promises.unlink(absolutePath).catch((error) => {
-          if (error.code !== 'ENOENT') {
-            console.warn(`Failed to remove photo file at ${absolutePath}:`, error.message);
-          }
-        });
-      })
+      photos.map((photo) => removeFileIfExists(getAbsoluteUploadPath(photo.storagePath)))
     );
 
     return res.status(204).send();

@@ -22,6 +22,8 @@ const buildRelativePath = ({ day, phaseIndex, moduleId }) => {
 
 const getUploadRoot = () => process.env.UPLOAD_ROOT || 'uploads';
 
+const getAbsoluteUploadPath = (...segments) => path.join(process.cwd(), getUploadRoot(), ...segments);
+
 const resolveStoragePath = (metadata) => {
   const uploadRoot = getUploadRoot();
   const relativeDir = buildRelativePath(metadata);
@@ -36,6 +38,8 @@ const resolveStoragePath = (metadata) => {
 };
 
 module.exports = {
+  buildRelativePath,
+  getAbsoluteUploadPath,
   resolveStoragePath,
   getUploadRoot
 };

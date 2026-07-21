@@ -1,0 +1,10 @@
+node_modules
+build
+.git
+.gitignore
+Dockerfile
+#nginx.conf
+server/node_modules
+server/.env
+.env
+.vscode
