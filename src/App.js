@@ -3494,24 +3494,6 @@ const WorkshopTool = () => {
                 )}
               </div>
             </div>
-            {/* Upload from file picker (no capture - shows file browser on iPad) */}
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotoUploadChange}
-              className="hidden"
-            />
-            {/* Camera capture input (capture attribute forces camera on iPad) */}
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraCaptureInputChange}
-              className="hidden"
-            />
           </div>
         </div>
       )}
@@ -4862,6 +4844,26 @@ const WorkshopTool = () => {
       )}
       </div>
       
+      {/* Upload from file picker (no capture - shows file browser on iPad) */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handlePhotoUploadChange}
+        className="hidden"
+      />
+      
+      {/* Camera capture input (capture attribute forces camera on iPad) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleCameraCaptureInputChange}
+        className="hidden"
+      />
+
       {/* Floating Action Button for Quick Camera Access */}
       {isAuthenticated && splashState === 'hidden' && (
         <button
