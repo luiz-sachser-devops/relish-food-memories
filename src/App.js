@@ -4861,6 +4861,18 @@ const WorkshopTool = () => {
         </div>
       )}
       </div>
+      
+      {/* Floating Action Button for Quick Camera Access */}
+      {isAuthenticated && splashState === 'hidden' && (
+        <button
+          onClick={openCameraViaInput}
+          disabled={photoUploading}
+          className="fixed bottom-6 right-6 w-16 h-16 bg-relish-accent text-white rounded-full flex items-center justify-center shadow-[0_4px_14px_0_rgba(207,67,39,0.39)] hover:bg-relish-accent-dark hover:scale-105 active:scale-95 transition-all z-[70] disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Quick capture"
+        >
+          <Camera size={28} />
+        </button>
+      )}
     </div>
   );
 };
