@@ -182,7 +182,7 @@ const WorkshopTool = () => {
   const isAdmin = authUser?.role === 'admin';
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+    if (typeof window !== 'undefined' && window.location.pathname.endsWith('/reset-password')) {
       const searchParams = new URLSearchParams(window.location.search);
       const token = searchParams.get('token');
       const email = searchParams.get('email');
