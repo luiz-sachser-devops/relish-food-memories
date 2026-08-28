@@ -14,6 +14,8 @@ services:
     build:
       context: ./server
     command: sh -c "npm run seed:admin && node src/index.js"
+    env_file:
+      - ./server/.env
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -31,7 +33,8 @@ services:
     build:
       context: .
       args:
-        REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-https://foodmemories.vps.tecnico.ulisboa.pt}
+        REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-https://relish-platform.eu}
+        PUBLIC_URL: ${PUBLIC_URL:-/foodmemories}
     depends_on:
       - backend
     ports:

@@ -89,6 +89,30 @@ Open http://localhost:3000 to access the facilitator UI. Uploaded files are serv
 
 ## Running with Helper Scripts (macOS/Linux/Git Bash)
 
+## Local and Production Environments
+
+Use the local Compose override for development. It serves the frontend at `http://localhost:3000`, the API at `http://localhost:4000`, and does not use production TLS certificates:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+```
+
+Stop it with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
+```
+
+For the Tecnico VM, create `.env.production` from `.env.production.example`, then upload the repository and the VM-provided `ssl/` certificate directory. Start only the production Compose file:
+
+```bash
+docker compose --env-file .env.production up -d --build
+```
+
+The production frontend continues to publish ports `80` and `443`; the VM Nginx/Cloudflare Worker remains responsible for the public HTTPS and `/foodmemories` routing.
+
+## Running with Helper Scripts (macOS/Linux/Git Bash)
+
 Two Bash scripts in `scripts/` streamline startup and shutdown:
 
 - `./scripts/start-stack.sh`: starts MongoDB (via Homebrew), boots the backend, waits for `/health`, then launches the frontend. It prints whimsical status updates and cleans up both Node processes on `Ctrl+C`.

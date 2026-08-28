@@ -6,8 +6,10 @@ const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const Workshop = require('../models/Workshop');
+const { Resend } = require('resend');
 
 const router = express.Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || 'dev-access-secret';
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
@@ -272,7 +274,7 @@ router.post(
       const { email } = req.body;
       const user = await User.findOne({ email: email.toLowerCase() });
       if (!user) {
-        return res.json({ message: 'If an account exists, a reset link will be provided.' });
+        return res.status(404).json({ message: 'Email is not registered.' });
       }
 
       const resetToken = crypto.randomBytes(24).toString('hex');
@@ -280,11 +282,41 @@ router.post(
       user.resetPasswordExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
       await user.save();
 
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const resetLink = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email)}`;
+
+      try {
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM || 'Food Memories <onboarding@resend.dev>',
+          to: user.email,
+          subject: 'Food Memories Workshop - Password Reset',
+          html: `
+            <div style="font-family: 'Source Sans 3', Arial, sans-serif; background-color: #F8F4EE; padding: 40px 20px; color: #1F1A17; text-align: center;">
+              <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 24px; box-shadow: 0 10px 30px rgba(31, 26, 23, 0.08);">
+                <img src="https://www.relish-platform.eu/foodmemories/logo.png" alt="Food Memories Workshop Logo" style="width: 80px; height: auto; margin-bottom: 24px;" />
+                <h1 style="font-family: 'DM Serif Display', Georgia, serif; font-size: 28px; margin-top: 0; color: #1F1A17;">Food Memories Workshop</h1>
+                <p style="font-size: 16px; color: #3B332D; line-height: 1.6; margin-bottom: 32px;">
+                  You recently requested to reset your password for your Food Memories Workshop account. Click the button below to proceed.
+                </p>
+                <a href="${resetLink}" style="display: inline-block; background-color: #E05345; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-weight: bold; font-size: 16px;">
+                  Reset Password
+                </a>
+                <p style="font-size: 14px; color: #9A8C7E; margin-top: 32px; line-height: 1.5;">
+                  If you did not request a password reset, you can safely ignore this email.
+                </p>
+              </div>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Error sending password reset email:', emailError);
+      }
+
       const responsePayload = {
         message: 'If an account exists, a reset link will be provided.'
       };
 
-      if (process.env.NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV !== 'production' && !process.env.RESEND_API_KEY) {
         responsePayload.resetToken = resetToken;
       }
 

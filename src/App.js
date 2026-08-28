@@ -181,6 +181,24 @@ const WorkshopTool = () => {
   const isFacilitator = authUser?.role === 'facilitator';
   const isAdmin = authUser?.role === 'admin';
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get('token');
+      const email = searchParams.get('email');
+      
+      if (token) {
+        setAuthMode('reset');
+        setAuthForm((prev) => ({ 
+          ...prev, 
+          resetToken: token,
+          resetEmail: email ? decodeURIComponent(email) : prev.resetEmail 
+        }));
+        setSplashState('hidden');
+      }
+    }
+  }, []);
+
   const dismissSplashScreen = useCallback(() => {
     setSplashState((prev) => (prev === 'visible' ? 'hiding' : prev));
   }, []);
@@ -420,13 +438,14 @@ const WorkshopTool = () => {
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(payload?.message || 'Unable to start password reset');
+        const errorMsg = payload?.errors?.[0]?.msg || payload?.message || 'Unable to start password reset';
+        throw new Error(errorMsg);
       }
 
       if (payload?.resetToken) {
         setAuthInfo(`Reset token (dev only): ${payload.resetToken}`);
       } else {
-        setAuthInfo('If an account exists, reset instructions will be sent.');
+        setAuthInfo(`The instruction to reset the password was sent to ${authForm.resetEmail.trim()}.`);
       }
     } catch (error) {
       setAuthError(error.message || 'Unable to start password reset');
@@ -2590,13 +2609,7 @@ const WorkshopTool = () => {
                   >
                     {authLoading ? 'Sending…' : 'Send reset instructions'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => switchAuthMode('reset')}
-                    className="w-full text-sm text-relish-ink-muted hover:text-relish-ink"
-                  >
-                    I already have a reset code
-                  </button>
+
                   <button
                     type="button"
                     onClick={() => switchAuthMode('login')}
@@ -2623,22 +2636,7 @@ const WorkshopTool = () => {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-reset-token">
-                      Reset code
-                    </label>
-                    <input
-                      id="auth-reset-token"
-                      name="resetToken"
-                      type="text"
-                      autoComplete="one-time-code"
-                      value={authForm.resetToken}
-                      onChange={handleAuthChange}
-                      placeholder="Enter reset code"
-                      className="w-full px-4 py-3 border border-relish-linen rounded-2xl bg-white/90 text-relish-ink focus:border-relish-ink focus:outline-none"
-                      required
-                    />
-                  </div>
+                  <input type="hidden" name="resetToken" value={authForm.resetToken} />
                   <div>
                     <label className="block text-xs uppercase tracking-[0.25em] text-relish-smoke mb-2" htmlFor="auth-new-password">
                       New password

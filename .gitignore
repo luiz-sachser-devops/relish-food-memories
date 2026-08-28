@@ -6,6 +6,7 @@ Dockerfile
 server/node_modules
 server/.env
 .env
+.env.production
 .vscode
 foodmemories.pem
 workshop-code.zip
